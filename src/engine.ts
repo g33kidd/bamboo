@@ -1,0 +1,183 @@
+import { hrtime } from "process";
+import Endpoint from "./endpoint";
+import Pipe from "./pipe";
+import Action, { action } from "./actions/action";
+import ActionGroup from "./actions/group";
+import ActionRegistry, { ActionWithParams } from "./actions/registry";
+import { parseActionURL } from "./helpers/action";
+import { ServerWebSocket, Serve, Server } from "bun";
+import Service from "./service";
+import WebSocketEndpoint from "./websocketEndpoint";
+import WebSocketPipe from "./websocketPipe";
+import WebSocketAction from "./actions/websocketAction";
+
+type EngineWebSocketConfig = {
+  pipes: Array<WebSocketPipe>;
+  actions: Array<WebSocketAction>;
+};
+
+type EngineConfig = {
+  pipes: Array<Pipe>;
+  actions: Array<Action | ActionGroup>;
+  services: Array<Service<any>>;
+  websocket?: EngineWebSocketConfig;
+};
+
+export default class Engine {
+  pipes: Array<Pipe> = [];
+  actions: Array<Action | ActionGroup> = [];
+  registry: ActionRegistry = new ActionRegistry();
+  services: Map<string, Service<any>> = new Map();
+  websocket?: EngineWebSocketConfig;
+
+  constructor(config: EngineConfig) {
+    // Copy pipes from the config into the Engine.
+    if (config.pipes.length > 0) {
+      for (let p = 0; p < config.pipes.length; p++) {
+        const pipe = config.pipes[p];
+        this.pipes.push(pipe);
+      }
+    }
+
+    // Copy services from the config into the Engine.
+    if (config.services.length > 0) {
+      for (let i = 0; i < config.services.length; i++) {
+        const service = config.services[i];
+        this.services.set(service.name, service.instance);
+      }
+    }
+
+    // Copy actions from the config into the Engine.
+    if (config.actions.length > 0) {
+      for (let a = 0; a < config.actions.length; a++) {
+        const action = config.actions[a];
+        this.actions.push(action);
+      }
+    }
+
+    // Copy from the configuration into the engine.
+    if (config.websocket) {
+      this.websocket = config.websocket;
+    }
+
+    // Add actions to the action registry.
+    for (let a = 0; a < this.actions.length; a++) {
+      const actionOrGroup = this.actions[a];
+
+      // Adds a new ActionGroup to the action registry.
+      if (actionOrGroup instanceof ActionGroup) {
+        this.registry.group(actionOrGroup);
+      }
+
+      // Adds a single Action into the action registry.
+      if (actionOrGroup instanceof Action) {
+        this.registry.action(actionOrGroup);
+      }
+    }
+  }
+
+  service<T>(name: string): T {
+    if (!this.services.has(name)) {
+      throw new Error(`Service "${name}" is not a valid service.`);
+    }
+
+    return this.services.get(name) as T;
+  }
+
+  // Creates an offloaded task that can be completed in the background.
+  offload(): void {
+    // create a new worker if one doesn't exist.
+    // determine the status of an existing worker if one does.
+    // send a message that describes a function to it.
+  }
+
+  server() {
+    const engine = this;
+
+    return {
+      async fetch(request: Request, server: Server) {
+        if (server.upgrade(request)) return;
+
+        const endpoint = new Endpoint(request, engine);
+        await engine.handle(endpoint);
+        return endpoint.response;
+      },
+      websocket: {
+        async open(ws) {
+          const endpoint = new WebSocketEndpoint(engine, ws);
+          // await endpoint.open();
+        },
+        async close(ws, code, reason) {
+          const endpoint = new WebSocketEndpoint(engine, ws);
+          // await endpoint.close(code, reason);
+        },
+        async message(
+          ws: ServerWebSocket<undefined>,
+          message: string | Buffer
+        ): Promise<void> {
+          let endpoint = new WebSocketEndpoint(engine, ws, message);
+          // Pipes run before the actions and can modify the endpoint.
+          endpoint = await engine.handleWebSocketPipes(endpoint);
+          // Actions do not directly modify the endpoint, so it only needs to take action on the endpoint.
+          const response = await engine.handleWebSocketAction(endpoint);
+          // Determine the status of the response.
+          // Respond differently if necessary.
+        },
+      },
+    } satisfies Serve;
+  }
+
+  async handleWebSocketPipes(endpoint: WebSocketEndpoint) {
+    if (this.websocket?.pipes) {
+      for (let i = 0; i < this.websocket?.pipes.length; i++) {
+        const pipe = this.websocket.pipes[i];
+        endpoint = await pipe.handle(endpoint);
+      }
+    }
+
+    return endpoint;
+  }
+
+  async handleWebSocketAction(endpoint: WebSocketEndpoint) {
+    return endpoint;
+  }
+
+  async handle(endpoint: Endpoint) {
+    endpoint = await this.handlePipes(endpoint);
+    endpoint = await this.handleAction(endpoint);
+
+    if (!endpoint.response) {
+      endpoint.status(500);
+    }
+
+    endpoint.timeEnd = hrtime.bigint();
+    endpoint.debug();
+    return endpoint;
+  }
+
+  async handleAction(endpoint: Endpoint) {
+    const parsedPath = parseActionURL(endpoint);
+    const { action, params }: ActionWithParams = this.registry.parse(
+      endpoint.request.method,
+      parsedPath
+    );
+
+    if (!action) {
+      return endpoint.status(404);
+    } else {
+      endpoint.params = params;
+      endpoint = await action.handle(endpoint);
+    }
+
+    return endpoint;
+  }
+
+  async handlePipes(endpoint: Endpoint) {
+    for (let index = 0; index < this.pipes.length; index++) {
+      const pipe = this.pipes[index];
+      endpoint = await pipe.handle(endpoint);
+    }
+
+    return endpoint;
+  }
+}
