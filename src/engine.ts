@@ -17,9 +17,9 @@ type EngineWebSocketConfig = {
 };
 
 type EngineConfig = {
-  pipes: Array<Pipe>;
-  actions: Array<Action | ActionGroup>;
-  services: Array<Service<any>>;
+  pipes?: Array<Pipe>;
+  actions?: Array<Action | ActionGroup>;
+  services?: Array<Service<any>>;
   websocket?: EngineWebSocketConfig;
 };
 
@@ -32,32 +32,43 @@ export default class Engine {
 
   constructor(config: EngineConfig) {
     // Copy pipes from the config into the Engine.
-    if (config.pipes.length > 0) {
-      for (let p = 0; p < config.pipes.length; p++) {
-        const pipe = config.pipes[p];
-        this.pipes.push(pipe);
+    if (config.pipes) {
+      if (config.pipes.length > 0) {
+        for (let p = 0; p < config.pipes.length; p++) {
+          const pipe = config.pipes[p];
+          this.pipes.push(pipe);
+        }
       }
     }
 
     // Copy services from the config into the Engine.
-    if (config.services.length > 0) {
-      for (let i = 0; i < config.services.length; i++) {
-        const service = config.services[i];
-        this.services.set(service.name, service.instance);
+    if (config.services) {
+      if (config.services.length > 0) {
+        for (let i = 0; i < config.services.length; i++) {
+          const service = config.services[i];
+          this.services.set(service.name, service.instance);
+        }
       }
     }
 
     // Copy actions from the config into the Engine.
-    if (config.actions.length > 0) {
-      for (let a = 0; a < config.actions.length; a++) {
-        const action = config.actions[a];
-        this.actions.push(action);
+    if (config.actions) {
+      if (config.actions.length > 0) {
+        for (let a = 0; a < config.actions.length; a++) {
+          const action = config.actions[a];
+          this.actions.push(action);
+        }
       }
     }
 
     // Copy from the configuration into the engine.
     if (config.websocket) {
       this.websocket = config.websocket;
+      // Add websocket actions to the wsActions registry.
+      if (this.websocket.actions.length > 0) {
+      }
+
+      // Add websocket pipes to the wsPipes registry.
     }
 
     // Add actions to the action registry.
@@ -91,10 +102,15 @@ export default class Engine {
     // send a message that describes a function to it.
   }
 
+  // Starts the application server.
   server() {
     const engine = this;
+    const hostname = process.env.HOST_NAME || "localhost";
+    const port = process.env.PORT || 3000;
 
     return {
+      hostname,
+      port,
       async fetch(request: Request, server: Server) {
         if (server.upgrade(request)) return;
 
@@ -127,6 +143,7 @@ export default class Engine {
     } satisfies Serve;
   }
 
+  // Handles a websocket pipe for an incoming request.
   async handleWebSocketPipes(endpoint: WebSocketEndpoint) {
     if (this.websocket?.pipes) {
       for (let i = 0; i < this.websocket?.pipes.length; i++) {
@@ -138,10 +155,12 @@ export default class Engine {
     return endpoint;
   }
 
+  // Handles a websocket action for an incoming request.
   async handleWebSocketAction(endpoint: WebSocketEndpoint) {
     return endpoint;
   }
 
+  // Handles an incoming request.
   async handle(endpoint: Endpoint) {
     endpoint = await this.handlePipes(endpoint);
     endpoint = await this.handleAction(endpoint);
@@ -155,6 +174,7 @@ export default class Engine {
     return endpoint;
   }
 
+  // Handles an action for an incoming request.
   async handleAction(endpoint: Endpoint) {
     const parsedPath = parseActionURL(endpoint);
     const { action, params }: ActionWithParams = this.registry.parse(
@@ -172,6 +192,7 @@ export default class Engine {
     return endpoint;
   }
 
+  // Handles global application pipes.
   async handlePipes(endpoint: Endpoint) {
     for (let index = 0; index < this.pipes.length; index++) {
       const pipe = this.pipes[index];

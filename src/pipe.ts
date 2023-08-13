@@ -1,7 +1,5 @@
 import Endpoint from "./endpoint";
 
-export type PipeOptions = {};
-
 export type PipeHandler = (endpoint: Endpoint) => Promise<Endpoint>;
 
 export default class Pipe {
@@ -20,4 +18,13 @@ export default class Pipe {
   async handle(endpoint: Endpoint) {
     return this.handler(endpoint);
   }
+}
+
+// Prereq is currently not used.
+export function pipe(
+  _name: string,
+  _handler: PipeHandler,
+  _prereq?: Array<string>
+) {
+  return new Pipe(_name, _handler, _prereq);
 }

@@ -28,3 +28,12 @@ export default class WebSocketPipe {
     return this.handler(endpoint);
   }
 }
+
+// Prereq is currently unused.
+export function wsPipe(
+  _name: string,
+  _handler: WebSocketPipeHandler,
+  _prereq?: Array<string>
+) {
+  return new WebSocketPipe(_name, _handler, _prereq);
+}
