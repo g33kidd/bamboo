@@ -1,4 +1,4 @@
-import { hrtime } from "process";
+import { env, hrtime } from "process";
 import Engine from "./engine";
 
 export default class Endpoint {
@@ -49,9 +49,7 @@ export default class Endpoint {
       time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`;
 
     console.log(
-      `[${this.request.method}] ${this.parts.join("/")} [${
-        this.response?.status
-      }] in ${timeDisplay}`
+      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`
     );
   }
 
@@ -102,6 +100,23 @@ export default class Endpoint {
     }
 
     return defaultValue || null;
+  }
+
+  async view(path: string, params?: object) {
+    if (!this.locked) {
+      const html = await this.engine.edge.render(path, this.viewData(params));
+      this.response = new Response(html);
+      this.locked = true;
+    }
+
+    return this;
+  }
+
+  viewData(params?: object): object {
+    return {
+      isDev: process.env.NODE_ENV === "development",
+      ...params,
+    };
   }
 
   /**

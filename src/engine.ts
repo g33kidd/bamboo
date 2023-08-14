@@ -10,13 +10,15 @@ import Service from "./service";
 import WebSocketEndpoint from "./websocketEndpoint";
 import WebSocketPipe from "./websocketPipe";
 import WebSocketAction from "./actions/websocketAction";
+import { Edge } from "edge.js";
+import { join } from "path";
 
-type EngineWebSocketConfig = {
+export type EngineWebSocketConfig = {
   pipes: Array<WebSocketPipe>;
   actions: Array<WebSocketAction>;
 };
 
-type EngineConfig = {
+export type EngineConfig = {
   pipes?: Array<Pipe>;
   actions?: Array<Action | ActionGroup>;
   services?: Array<Service<any>>;
@@ -24,21 +26,33 @@ type EngineConfig = {
 };
 
 export type ApplicationConfig = {
-  publicPath: string;
-  storagePath: string;
+  paths: {
+    root: string;
+    public: string;
+    storage: string;
+    views: string;
+  };
 };
 
 export default class Engine {
   pipes: Array<Pipe> = [];
+  config: ApplicationConfig;
   actions: Array<Action | ActionGroup> = [];
   registry: ActionRegistry = new ActionRegistry();
   services: Map<string, Service<any>> = new Map();
   workers: Map<string, Worker> = new Map();
   websocket?: EngineWebSocketConfig;
 
+  edge: Edge;
+
   // websocketRegistry: WebSocketActionRegistry = new WebSocketActionRegistry();
 
-  constructor(config: EngineConfig) {
+  constructor(appConfig: ApplicationConfig, config: EngineConfig) {
+    this.config = appConfig;
+
+    this.edge = new Edge({ cache: false });
+    this.edge.mount(this.config.paths.views);
+
     // Copy pipes from the config into the Engine.
     if (config.pipes) {
       if (config.pipes.length > 0) {
