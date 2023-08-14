@@ -30,6 +30,8 @@ export default class Engine {
   services: Map<string, Service<any>> = new Map();
   websocket?: EngineWebSocketConfig;
 
+  // websocketRegistry: WebSocketActionRegistry = new WebSocketActionRegistry();
+
   constructor(config: EngineConfig) {
     // Copy pipes from the config into the Engine.
     if (config.pipes) {

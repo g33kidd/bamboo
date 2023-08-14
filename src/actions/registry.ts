@@ -77,6 +77,12 @@ export default class ActionRegistry {
               lastAction = currentRegistryDefinition;
             }
           } else {
+            const wildcardMatch = Array.from(
+              currentRegistryDefinition.keys()
+            ).find(
+              (key) => typeof key === "string" && key.startsWith("*")
+            ) as string;
+
             // Check if there's a child of currentRegistryDefinition that matches a parameter match expression
             const parameterMatch = Array.from(
               currentRegistryDefinition.keys()
@@ -94,6 +100,10 @@ export default class ActionRegistry {
                 : parameterMatch.slice(1, parameterMatch.length - 2);
               params.set(parameterName, pathPart);
               lastAction = currentRegistryDefinition.get(parameterMatch);
+            }
+
+            if (wildcardMatch) {
+              lastAction = currentRegistryDefinition.get(wildcardMatch);
             }
 
             break; // Break the loop, as the path is not found in the registry

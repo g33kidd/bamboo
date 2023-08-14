@@ -19,6 +19,7 @@ export default class Action {
     this.method = definition[0];
 
     const pathParts = definition[1].split("/");
+    pathParts.shift();
 
     if (pathParts.length !== 1) {
       if (pathParts[pathParts.length - 1] === "") {

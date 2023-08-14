@@ -1,11 +1,11 @@
-import Endpoint from "../../endpoint";
-import Pipe from "../../pipe";
+import Endpoint from "../endpoint";
+import Pipe from "../pipe";
 import path from "path";
 
-type FileTypes = { [ext: string]: string };
+export type FileTypes = { [ext: string]: string };
 
 // List from here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-const SUPPORTED_FILE_TYPES: FileTypes = {
+export const SUPPORTED_FILE_TYPES: FileTypes = {
   txt: "text/plain",
   html: "text/html",
   htm: "text/html",
@@ -68,12 +68,12 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
 
   // If somehow this gets through, directory traversal prevention is here...
   if (url.includes("../") || url.includes("..")) {
-    endpoint.status(403);
+    return endpoint.status(403);
   }
 
   const validFolder = staticPaths.some((path) => url.includes(path));
   if (!validFolder) {
-    endpoint.status(404);
+    return endpoint.status(404);
   }
 
   const fileUrl = path.join(process.cwd(), url.join("/"));
@@ -84,11 +84,11 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
     const contents = await file.arrayBuffer();
 
     endpoint.response = new Response(contents);
-    endpoint.header("Content-Type", contentType(ext));
+    endpoint.header("Content-Type", file.type);
     endpoint.header("Content-Length", contents.byteLength);
     endpoint.locked = true;
   } else {
-    endpoint.status(404, "Not Found");
+    return endpoint.status(404);
   }
 
   return endpoint;

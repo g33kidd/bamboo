@@ -9,10 +9,9 @@ import WebSocketAction, { ws } from "./src/actions/websocketAction";
 import WebSocketPipe, { wsPipe } from "./src/websocketPipe";
 
 // Internal Pipes
-import staticPipe from "./src/pipes/defaults/static";
+import staticPipe from "./src/pipes/static";
 
 export {
-  // Classes
   Engine,
   Endpoint,
   WebSocketEndpoint,
@@ -22,15 +21,11 @@ export {
   WebSocketAction,
   WebSocketPipe,
   Service,
-
-  // Action Definition Helpers
   action,
   group,
   service,
   ws,
   wsPipe,
   pipe,
-
-  // Internal Pipes
   staticPipe,
 };
