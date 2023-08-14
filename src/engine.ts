@@ -23,11 +23,17 @@ type EngineConfig = {
   websocket?: EngineWebSocketConfig;
 };
 
+export type ApplicationConfig = {
+  publicPath: string;
+  storagePath: string;
+};
+
 export default class Engine {
   pipes: Array<Pipe> = [];
   actions: Array<Action | ActionGroup> = [];
   registry: ActionRegistry = new ActionRegistry();
   services: Map<string, Service<any>> = new Map();
+  workers: Map<string, Worker> = new Map();
   websocket?: EngineWebSocketConfig;
 
   // websocketRegistry: WebSocketActionRegistry = new WebSocketActionRegistry();
@@ -87,6 +93,17 @@ export default class Engine {
         this.registry.action(actionOrGroup);
       }
     }
+
+    // TODO: Finish worker setup
+    // const worker = new Worker(
+    //   new URL("./workers/taskWorker.ts", import.meta.url).href
+    // );
+
+    // worker.addEventListener("open", () => {
+    //   console.log("worker is ready");
+    // });
+
+    // this.workers.set("tasks", worker);
   }
 
   service<T>(name: string): T {
@@ -98,7 +115,14 @@ export default class Engine {
   }
 
   // Creates an offloaded task that can be completed in the background.
-  offload(): void {
+  offload(name: string, task: any): void {
+    // const worker = this.workers.get(name);
+    // if (worker) {
+    //   worker.postMessage({
+    //     message: "offload_task",
+    //     task,
+    //   });
+    // }
     // create a new worker if one doesn't exist.
     // determine the status of an existing worker if one does.
     // send a message that describes a function to it.

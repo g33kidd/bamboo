@@ -47,16 +47,6 @@ export default class ActionRegistry {
 
   // Parses an incoming action.
   parse(method: string, path: string[]): ActionWithParams {
-    // TODO: Cached actions
-    // const cacheKey = `${method}:${path.join("/")}`;
-    // const cachedAction = this.actionCache.get(cacheKey);
-
-    // if (cachedAction) {
-    //   return {
-
-    //   }
-    // }
-
     const current = this.store.get(method);
 
     if (current) {
