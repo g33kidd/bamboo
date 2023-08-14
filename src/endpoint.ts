@@ -107,7 +107,7 @@ export default class Endpoint {
   /**
    * Sends a file as a response and compresses it using GZIP if specified.
    */
-  async file(path: string, compress: boolean = false) {
+  async file(path: string) {
     if (!this.locked) {
       const file = Bun.file(path);
       const exists = await file.exists();
@@ -117,27 +117,8 @@ export default class Endpoint {
         return this.status(404);
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-
-      if (compress) {
-        const compressed = Bun.gzipSync(Buffer.from(arrayBuffer));
-        this.response = new Response(compressed, {
-          headers: {
-            "Content-Encoding": "gzip",
-            "Content-Length": compressed.byteLength.toString(),
-            "Content-Type": file.type,
-          },
-        });
-        this.locked = true;
-      } else {
-        this.response = new Response(arrayBuffer, {
-          headers: {
-            "Content-Length": arrayBuffer.byteLength.toString(),
-            "Content-Type": file.type,
-          },
-        });
-        this.locked = true;
-      }
+      this.response = new Response(file);
+      this.locked = true;
     }
 
     return this;

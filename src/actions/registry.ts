@@ -83,6 +83,11 @@ export default class ActionRegistry {
               (key) => typeof key === "string" && key.startsWith("*")
             ) as string;
 
+            if (wildcardMatch) {
+              lastAction = currentRegistryDefinition.get(wildcardMatch);
+              break;
+            }
+
             // Check if there's a child of currentRegistryDefinition that matches a parameter match expression
             const parameterMatch = Array.from(
               currentRegistryDefinition.keys()
@@ -100,13 +105,8 @@ export default class ActionRegistry {
                 : parameterMatch.slice(1, parameterMatch.length - 2);
               params.set(parameterName, pathPart);
               lastAction = currentRegistryDefinition.get(parameterMatch);
+              break; // Break the loop, as the path is not found in the registry
             }
-
-            if (wildcardMatch) {
-              lastAction = currentRegistryDefinition.get(wildcardMatch);
-            }
-
-            break; // Break the loop, as the path is not found in the registry
           }
         } else {
           lastAction = null;

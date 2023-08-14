@@ -44,6 +44,8 @@ export const SUPPORTED_FILE_TYPES: FileTypes = {
   // Add more file types here if needed
 };
 
+const CACHE_DURATION = 3600; // Cache duration in seconds (1 hour)
+
 // TODO: Add more.
 const SUPPORTED_EXTENSIONS = Object.keys(SUPPORTED_FILE_TYPES);
 const isSupported = (ext: string) => SUPPORTED_EXTENSIONS.includes(ext);
@@ -63,10 +65,8 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   const expectedExt = url[url.length - 1].split(".")[1];
   const ext = isSupported(expectedExt) ? expectedExt : null;
 
-  // There is no valid file extension to handle.
   if (!ext) return endpoint;
 
-  // If somehow this gets through, directory traversal prevention is here...
   if (url.includes("../") || url.includes("..")) {
     return endpoint.status(403);
   }
@@ -81,11 +81,26 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   const exists = await file.exists();
 
   if (exists) {
-    const contents = await file.arrayBuffer();
+    // const contents = await file.arrayBuffer();
 
-    endpoint.response = new Response(contents);
-    endpoint.header("Content-Type", file.type);
-    endpoint.header("Content-Length", contents.byteLength);
+    const response = new Response(file.stream());
+    response.headers.set("Content-Type", file.type);
+    response.headers.set("Content-Length", file.size.toString());
+
+    // Cache Control Headers
+    response.headers.set("Cache-Control", `public, max-age=${CACHE_DURATION}`);
+
+    // ETag (Entity Tag)
+    const etag = `"${new Date().getTime().toString(16)}"`;
+    response.headers.set("ETag", etag);
+
+    // Conditional Requests
+    const ifNoneMatch = endpoint.header("if-none-match");
+    if (ifNoneMatch === etag) {
+      return endpoint.status(304); // Not Modified
+    }
+
+    endpoint.response = response;
     endpoint.locked = true;
   } else {
     return endpoint.status(404);

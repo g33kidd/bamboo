@@ -39,7 +39,6 @@ export default class Action {
     this.pipes = _pipes;
   }
 
-  // TODO: Handle the PIPES!
   async handle(endpoint: Endpoint) {
     endpoint = await this.handlePipes(endpoint);
     endpoint = await this.handler(endpoint);
