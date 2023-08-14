@@ -105,7 +105,12 @@ export default class Endpoint {
   async view(path: string, params?: object) {
     if (!this.locked) {
       const html = await this.engine.edge.render(path, this.viewData(params));
-      this.response = new Response(html);
+      this.response = new Response(html, {
+        headers: {
+          "Content-Type": "text/html",
+          "Content-Length": html.length.toString(),
+        },
+      });
       this.locked = true;
     }
 

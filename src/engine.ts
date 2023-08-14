@@ -11,7 +11,6 @@ import WebSocketEndpoint from "./websocketEndpoint";
 import WebSocketPipe from "./websocketPipe";
 import WebSocketAction from "./actions/websocketAction";
 import { Edge } from "edge.js";
-import { join } from "path";
 
 export type EngineWebSocketConfig = {
   pipes: Array<WebSocketPipe>;
@@ -26,6 +25,7 @@ export type EngineConfig = {
 };
 
 export type ApplicationConfig = {
+  pathMap?: Map<string, string>;
   paths: {
     root: string;
     public: string;
@@ -49,6 +49,10 @@ export default class Engine {
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.config = appConfig;
+
+    if (!this.config.pathMap) {
+      this.config.pathMap = new Map<string, string>();
+    }
 
     this.edge = new Edge({ cache: false });
     this.edge.mount(this.config.paths.views);
@@ -118,6 +122,12 @@ export default class Engine {
     // });
 
     // this.workers.set("tasks", worker);
+  }
+
+  mapPath(from: string, to: string) {
+    if (this.config.pathMap) {
+      this.config.pathMap.set(from, to);
+    }
   }
 
   service<T>(name: string): T {

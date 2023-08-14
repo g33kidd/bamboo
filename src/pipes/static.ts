@@ -1,6 +1,6 @@
 import Endpoint from "../endpoint";
 import Pipe from "../pipe";
-import path from "path";
+import path, { join } from "path";
 
 export type FileTypes = { [ext: string]: string };
 
@@ -19,6 +19,7 @@ export const SUPPORTED_FILE_TYPES: FileTypes = {
   webp: "image/webp",
   svg: "image/svg+xml",
   mp3: "audio/mpeg",
+  ico: "image/vnd.microsoft.icon",
   wav: "audio/wav",
   ogg: "audio/ogg",
   mp4: "video/mp4",
@@ -57,6 +58,13 @@ const contentType = (ext: string) => SUPPORTED_FILE_TYPES[ext];
  * Handles static assets.
  */
 export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
+  // Path mapping needs to be a thing
+  // Will be used to search directories or rewrite them.
+  // This is needed while running a vite development server, because some assets come from node_modules.
+  const pathMap: Map<string, string> =
+    endpoint.engine.config.pathMap ?? new Map();
+
+  // TODO: Support multiple static paths. This needs to be combined with the pathMap above.
   if (!staticPaths) {
     staticPaths = ["static", "assets"];
   }
@@ -65,24 +73,60 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   const expectedExt = url[url.length - 1].split(".")[1];
   const ext = isSupported(expectedExt) ? expectedExt : null;
 
+  // This is likely empty or a folder.
+  const folder = url[0];
+
   if (!ext) return endpoint;
 
   if (url.includes("../") || url.includes("..")) {
     return endpoint.status(403);
   }
 
-  const validFolder = staticPaths.some((path) => url.includes(path));
-  if (!validFolder) {
-    return endpoint.status(404);
+  // Actually the folder doesn't matter, but the path we search in does.
+  // const validFolder = staticPaths.some((path) => url.includes(path));
+  // if (!validFolder) {
+  //   // return endpoint.status(404);
+  // }
+
+  // let fileURL;
+  // let file;
+  // let exists;
+
+  // In-case this directory has been mapped as a different path in the filesystem, we'll figure that out here.
+  let directory = join(process.cwd(), "static");
+  let modifiedDirectory = false;
+
+  if (folder !== "" || folder !== null) {
+    // Get the mapped path and assign it.
+    const mappedPath = pathMap.get(folder);
+    if (mappedPath) {
+      directory = mappedPath;
+      modifiedDirectory = true;
+    }
   }
 
-  const fileUrl = path.join(process.cwd(), url.join("/"));
-  const file = Bun.file(fileUrl);
-  const exists = await file.exists();
+  let fileURL = path.join(directory, url.join("/"));
+  let file = Bun.file(fileURL);
+  let exists = await file.exists();
+
+  // Loops through the static paths and tries to find the file.
+  for (let i = 0; i < staticPaths.length; i++) {
+    const path = staticPaths[i];
+    const possibleFile = Bun.file(join(path, url.join("/")));
+    const possibleFileExists = await possibleFile.exists();
+
+    if (possibleFileExists) {
+      file = possibleFile;
+      exists = possibleFileExists;
+    }
+  }
+
+  const fileUrl = path.join(directory, url.join("/"));
+  // console.log(fileUrl);
+  // const file = Bun.file(fileUrl);
+  // const exists = await file.exists();
 
   if (exists) {
-    // const contents = await file.arrayBuffer();
-
     const response = new Response(file.stream());
     response.headers.set("Content-Type", file.type);
     response.headers.set("Content-Length", file.size.toString());
