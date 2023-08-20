@@ -9,7 +9,7 @@ export type ActionWithParams = {
 
 export default class ActionRegistry {
   store: Map<string, any> = new Map();
-  // actionCache: Map<string, Action> = new Map();
+  actionCache: Map<string, Action> = new Map();
 
   // Adds a new action to this registry.
   action(action: Action, pathOverride?: string[]) {

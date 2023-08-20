@@ -11,6 +11,7 @@ import WebSocketEndpoint from "./websocketEndpoint";
 import WebSocketPipe from "./websocketPipe";
 import WebSocketAction from "./actions/websocketAction";
 import { Edge } from "edge.js";
+import WebSocketActionRegistry from "./actions/websocketRegistry";
 
 export type EngineWebSocketConfig = {
   pipes: Array<WebSocketPipe>;
@@ -41,6 +42,8 @@ export default class Engine {
   registry: ActionRegistry = new ActionRegistry();
   services: Map<string, Service<any>> = new Map();
   workers: Map<string, Worker> = new Map();
+
+  websocketRegistry?: WebSocketActionRegistry;
   websocket?: EngineWebSocketConfig;
 
   edge: Edge;
@@ -92,9 +95,22 @@ export default class Engine {
       this.websocket = config.websocket;
       // Add websocket actions to the wsActions registry.
       if (this.websocket.actions.length > 0) {
+        if (!this.websocketRegistry) {
+          this.websocketRegistry = new WebSocketActionRegistry();
+        }
+
+        for (let i = 0; i < this.websocket.actions.length; i++) {
+          this.websocketRegistry.action(this.websocket.actions[i]);
+        }
       }
 
-      // Add websocket pipes to the wsPipes registry.
+      // TODO: This
+      // TODO: This
+      // TODO: This
+      // TODO: This
+      // if (this.websocket.pipes.length > 0) {
+
+      // }
     }
 
     // Add actions to the action registry.
@@ -162,18 +178,24 @@ export default class Engine {
       hostname,
       port,
       async fetch(request: Request, server: Server) {
-        if (server.upgrade(request)) return;
-
         const endpoint = new Endpoint(request, engine);
+
+        // Only attempt to upgrade the connection if the pathname includes "/ws".
+        if (endpoint.url.pathname.includes("/ws")) {
+          if (server.upgrade(request)) return;
+        }
+
         await engine.handle(endpoint);
         return endpoint.response;
       },
       websocket: {
         async open(ws) {
+          // This should add this connection to somewhere?
           const endpoint = new WebSocketEndpoint(engine, ws);
           // await endpoint.open();
         },
         async close(ws, code, reason) {
+          // This function should remove all references to this connection from wherever else they are.
           const endpoint = new WebSocketEndpoint(engine, ws);
           // await endpoint.close(code, reason);
         },
@@ -181,13 +203,12 @@ export default class Engine {
           ws: ServerWebSocket<undefined>,
           message: string | Buffer
         ): Promise<void> {
+          if (message.length === 0) return;
           let endpoint = new WebSocketEndpoint(engine, ws, message);
           // Pipes run before the actions and can modify the endpoint.
           endpoint = await engine.handleWebSocketPipes(endpoint);
           // Actions do not directly modify the endpoint, so it only needs to take action on the endpoint.
-          const response = await engine.handleWebSocketAction(endpoint);
-          // Determine the status of the response.
-          // Respond differently if necessary.
+          await engine.handleWebSocketAction(endpoint);
         },
       },
     } satisfies Serve;
@@ -207,6 +228,16 @@ export default class Engine {
 
   // Handles a websocket action for an incoming request.
   async handleWebSocketAction(endpoint: WebSocketEndpoint) {
+    if (this.websocketRegistry && endpoint.parsedMessage) {
+      const action = this.websocketRegistry.parse(endpoint.parsedMessage);
+      if (action !== null) {
+        endpoint = await action.handle(endpoint);
+      }
+    }
+
+    endpoint.timeEnd = hrtime.bigint();
+    endpoint.debug();
+
     return endpoint;
   }
 

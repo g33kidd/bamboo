@@ -2,6 +2,7 @@
   "name": "bamboo",
   "module": "index.ts",
   "type": "module",
+  "version": "0.0.1",
   "devDependencies": {
     "bun-types": "latest"
   },
