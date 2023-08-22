@@ -35,6 +35,11 @@ export type ApplicationConfig = {
   };
 };
 
+export type EngineLimiter = {
+  amount: number;
+  perIntervalMs: number;
+};
+
 export default class Engine {
   pipes: Array<Pipe> = [];
   config: ApplicationConfig;
@@ -42,6 +47,11 @@ export default class Engine {
   registry: ActionRegistry = new ActionRegistry();
   services: Map<string, Service<any>> = new Map();
   workers: Map<string, Worker> = new Map();
+
+  // Rate Limiting
+  rateLimiters?: Map<string, EngineLimiter>;
+  // This needs to support an external service like redis or use an internal TCP service.
+  rateCache?: Map<string, number>;
 
   websocketRegistry?: WebSocketActionRegistry;
   websocket?: EngineWebSocketConfig;
@@ -154,6 +164,11 @@ export default class Engine {
     return this.services.get(name) as T;
   }
 
+  // ratelimit(config: { [key: string]: EngineLimiter }) {
+  //   this.rateLimiters = config;
+  //   return this;
+  // }
+
   // Creates an offloaded task that can be completed in the background.
   offload(name: string, task: any): void {
     // const worker = this.workers.get(name);
@@ -192,7 +207,9 @@ export default class Engine {
         async open(ws) {
           // This should add this connection to somewhere?
           const endpoint = new WebSocketEndpoint(engine, ws);
-          // await endpoint.open();
+          ws.send(
+            JSON.stringify({ event: "ping", data: { timestamp: Date.now() } })
+          );
         },
         async close(ws, code, reason) {
           // This function should remove all references to this connection from wherever else they are.
@@ -228,8 +245,10 @@ export default class Engine {
 
   // Handles a websocket action for an incoming request.
   async handleWebSocketAction(endpoint: WebSocketEndpoint) {
+    console.log(endpoint.parsedMessage);
     if (this.websocketRegistry && endpoint.parsedMessage) {
       const action = this.websocketRegistry.parse(endpoint.parsedMessage);
+      console.log(action);
       if (action !== null) {
         endpoint = await action.handle(endpoint);
       }

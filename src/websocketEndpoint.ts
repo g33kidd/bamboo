@@ -3,7 +3,7 @@ import { Engine } from "..";
 import { hrtime } from "process";
 
 export type MessageParameters = {
-  action: string;
+  event: string;
   parameters?: object;
 };
 
@@ -50,13 +50,13 @@ export default class WebSocketEndpoint {
       try {
         const json = JSON.parse(this.message.toString());
         this.parsedMessage = {
-          action: json.action,
+          event: json.event,
           parameters: json.params,
         };
       } catch (e) {
         // This request is not a JSON message.
         this.parsedMessage = {
-          action: this.message.toString(),
+          event: this.message.toString(),
         };
       }
     }
@@ -83,11 +83,8 @@ export default class WebSocketEndpoint {
       time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`;
 
     console.log(
-      `[WS ${this.ws.readyState}] ${this.parsedMessage?.action} in ${timeDisplay}`
+      `[WS ${this.ws.readyState}] ${this.parsedMessage?.event} in ${timeDisplay}`
     );
-    // console.log(
-    //   `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`
-    // );
   }
 
   /**
@@ -99,7 +96,13 @@ export default class WebSocketEndpoint {
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
   async ratelimit(context: string): Promise<boolean> {
-    return false;
+    // Adds the remoteAddress to the context key.
+    context += `/${this.ws.remoteAddress}`;
+    console.log(context);
+
+    // Check the engine if the rate limit with the specified context has reached its limit.
+
+    return true;
   }
 
   /**
@@ -114,7 +117,7 @@ export default class WebSocketEndpoint {
    * Sends a JSON response to the websocket.
    */
   async json(data: any) {
-    this.response = JSON.stringify(data);
+    this.response = JSON.stringify({ event: this.parsedMessage?.event, data });
     this.send();
     return this;
   }
@@ -126,10 +129,12 @@ export default class WebSocketEndpoint {
   send(data?: string | Buffer) {
     if (!data) {
       if (this.response) {
-        this.ws.send(this.response, this.compressed);
+        const sentBytes = this.ws.send(this.response, this.compressed);
+        console.log(sentBytes);
       }
     } else {
-      this.ws.send(data, this.compressed);
+      const sentBytes = this.ws.send(data, this.compressed);
+      console.log(sentBytes);
     }
   }
 }

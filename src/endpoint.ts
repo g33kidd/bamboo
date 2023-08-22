@@ -1,4 +1,4 @@
-import { env, hrtime } from "process";
+import { hrtime } from "process";
 import Engine from "./engine";
 
 export default class Endpoint {
@@ -102,6 +102,7 @@ export default class Endpoint {
     return defaultValue || null;
   }
 
+  // Creates an HTML response based on an edge.js template defined in the views folder.
   async view(path: string, params?: object) {
     if (!this.locked) {
       const html = await this.engine.edge.render(path, this.viewData(params));
@@ -117,6 +118,7 @@ export default class Endpoint {
     return this;
   }
 
+  // Creates an object of properties to be used in view templates.
   viewData(params?: object): object {
     return {
       isDev: process.env.NODE_ENV === "development",

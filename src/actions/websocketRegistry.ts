@@ -15,7 +15,7 @@ export default class WebSocketActionRegistry {
 
   // TODO: action parameters (not just JSON from the message body).
   parse(message: MessageParameters): WebSocketAction | null {
-    const action = this.store.get(message.action);
+    const action = this.store.get(message.event);
     if (action) {
       return action;
     } else {
