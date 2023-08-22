@@ -210,7 +210,7 @@ export default class Engine {
         return endpoint.response;
       },
       websocket: {
-        async open(ws) {
+        async open(ws: ServerWebSocket<undefined>) {
           // This should add this connection to somewhere?
           const endpoint = new WebSocketEndpoint(engine, ws);
           const token = (endpoint.ws.data as any).token;
