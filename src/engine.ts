@@ -41,6 +41,7 @@ export type EngineLimiter = {
 };
 
 export default class Engine {
+  server?: Server;
   pipes: Array<Pipe> = [];
   config: ApplicationConfig;
   actions: Array<Action | ActionGroup> = [];
@@ -54,6 +55,7 @@ export default class Engine {
   rateCache?: Map<string, number>;
 
   websocketRegistry?: WebSocketActionRegistry;
+  websocketClients: Map<string, any> = new Map<string, any>();
   websocket?: EngineWebSocketConfig;
 
   edge: Edge;
@@ -62,6 +64,8 @@ export default class Engine {
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.config = appConfig;
+
+    // Setup EventEmitter for sending publish requests to the server.
 
     if (!this.config.pathMap) {
       this.config.pathMap = new Map<string, string>();
@@ -113,14 +117,6 @@ export default class Engine {
           this.websocketRegistry.action(this.websocket.actions[i]);
         }
       }
-
-      // TODO: This
-      // TODO: This
-      // TODO: This
-      // TODO: This
-      // if (this.websocket.pipes.length > 0) {
-
-      // }
     }
 
     // Add actions to the action registry.
@@ -184,12 +180,12 @@ export default class Engine {
   }
 
   // Starts the application server.
-  server() {
+  serve() {
     const engine = this;
     const hostname = process.env.HOST_NAME || "localhost";
     const port = process.env.PORT || 3000;
 
-    return {
+    this.server = Bun.serve({
       hostname,
       port,
       async fetch(request: Request, server: Server) {
@@ -197,7 +193,17 @@ export default class Engine {
 
         // Only attempt to upgrade the connection if the pathname includes "/ws".
         if (endpoint.url.pathname.includes("/ws")) {
-          if (server.upgrade(request)) return;
+          if (endpoint.url.searchParams.get("token") !== null) {
+            if (
+              server.upgrade(request, {
+                data: {
+                  token: endpoint.url.searchParams.get("token"),
+                },
+              })
+            ) {
+              return;
+            }
+          }
         }
 
         await engine.handle(endpoint);
@@ -207,14 +213,39 @@ export default class Engine {
         async open(ws) {
           // This should add this connection to somewhere?
           const endpoint = new WebSocketEndpoint(engine, ws);
+          const token = (endpoint.ws.data as any).token;
+
+          // A page refresh might be needed on the client to get a new token.
+          if (engine.websocketClients.has(token)) {
+            ws.terminate();
+            return;
+          } else {
+            engine.websocketClients.set(token, {});
+          }
+
+          ws.subscribe(`client:${token}`);
           ws.send(
-            JSON.stringify({ event: "ping", data: { timestamp: Date.now() } })
+            JSON.stringify({
+              event: "connected",
+              data: { timestamp: Date.now() },
+            })
           );
         },
         async close(ws, code, reason) {
           // This function should remove all references to this connection from wherever else they are.
           const endpoint = new WebSocketEndpoint(engine, ws);
-          // await endpoint.close(code, reason);
+          const token = (endpoint.ws.data as any).token;
+
+          if (engine.websocketClients.has(token)) {
+            if (engine.websocketClients.delete(token)) {
+              // Ensure the connection is terminated.
+              // Do I need to terminate any existing connections using this token? Probably...
+              // ws.publish(token, { event: "terminate" });
+              ws.terminate();
+            }
+          } else {
+            ws.terminate();
+          }
         },
         async message(
           ws: ServerWebSocket<undefined>,
@@ -228,7 +259,9 @@ export default class Engine {
           await engine.handleWebSocketAction(endpoint);
         },
       },
-    } satisfies Serve;
+    });
+
+    return this;
   }
 
   // Handles a websocket pipe for an incoming request.
@@ -245,10 +278,8 @@ export default class Engine {
 
   // Handles a websocket action for an incoming request.
   async handleWebSocketAction(endpoint: WebSocketEndpoint) {
-    console.log(endpoint.parsedMessage);
     if (this.websocketRegistry && endpoint.parsedMessage) {
       const action = this.websocketRegistry.parse(endpoint.parsedMessage);
-      console.log(action);
       if (action !== null) {
         endpoint = await action.handle(endpoint);
       }

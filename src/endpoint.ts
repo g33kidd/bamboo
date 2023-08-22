@@ -1,8 +1,10 @@
 import { hrtime } from "process";
 import Engine from "./engine";
+import { Server } from "bun";
 
 export default class Endpoint {
   engine: Engine;
+  // server: Server;
   request: Request;
   response?: Response;
   parts: string[];
@@ -26,6 +28,7 @@ export default class Endpoint {
     this.stashMap = new Map();
     this.request = _request;
     this.parts = this.parseURL();
+    // this.server = _server;
   }
 
   // Returns the time taken to handle the request in microseconds.

@@ -44,6 +44,20 @@ export default class WebSocketEndpoint {
     this.parseMessage();
   }
 
+  // Returns the websocket token.
+  getToken() {
+    if (this.ws.data) {
+      const data = this.ws.data as any;
+      if (data.token) {
+        return data.token;
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
+  }
+
   // Determines the action and parameters sent in.
   parseMessage() {
     if (this.message) {
@@ -95,7 +109,7 @@ export default class WebSocketEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  async ratelimit(context: string): Promise<boolean> {
+  ratelimit(context: string): boolean {
     // Adds the remoteAddress to the context key.
     context += `/${this.ws.remoteAddress}`;
     console.log(context);
@@ -125,6 +139,8 @@ export default class WebSocketEndpoint {
   /**
    * Sends the defined message to the client.
    * Or, if undefined, sends the stored response as a message.
+   *
+   * TODO: Refactor this.
    */
   send(data?: string | Buffer) {
     if (!data) {
@@ -137,4 +153,8 @@ export default class WebSocketEndpoint {
       console.log(sentBytes);
     }
   }
+
+  // Utility functions for performing actions on the WS itself.
+  subscribe = (topic: string) => this.ws.subscribe(topic);
+  unsubscribe = (topic: string) => this.ws.unsubscribe(topic);
 }
