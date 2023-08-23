@@ -323,6 +323,30 @@ export default class Engine {
     return endpoint;
   }
 
+  ratelimit(context: string, limit: number = 60): boolean {
+    let currentAmount = 0;
+
+    if (!this.rateCache) {
+      this.rateCache = new Map();
+    }
+
+    if (!this.rateCache.has(context)) {
+      this.rateCache.set(context, 0);
+    } else {
+      const current = this.rateCache.get(context);
+      if (current) {
+        currentAmount = current + 1;
+        this.rateCache.set(context, currentAmount);
+      }
+    }
+
+    if (currentAmount <= limit) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   // Handles global application pipes.
   async handlePipes(endpoint: Endpoint) {
     for (let index = 0; index < this.pipes.length; index++) {

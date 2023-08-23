@@ -108,13 +108,11 @@ export default class WebSocketEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  ratelimit(context: string): boolean {
-    // Adds the remoteAddress to the context key.
-    // TODO: This
-    context += `/${this.ws.remoteAddress}`;
-    console.log(context);
-    // Check the engine if the rate limit with the specified context has reached its limit.
-    return true;
+  ratelimit(context: string, limit: number = 60): boolean {
+    const ip = this.ws.remoteAddress.toString();
+    const ipHash = Buffer.from(ip).toString("base64");
+    context += `/${ipHash}`;
+    return this.engine.ratelimit(context, limit);
   }
 
   /**
