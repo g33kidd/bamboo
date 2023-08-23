@@ -1,6 +1,6 @@
 import { hrtime } from "process";
 import Engine from "./engine";
-import { Server } from "bun";
+import * as ncrypto from "node:crypto";
 
 export default class Endpoint {
   engine: Engine;
@@ -38,6 +38,23 @@ export default class Endpoint {
     } else {
       return 0;
     }
+  }
+
+  /**
+   * Creates a secure random token that includes a UTC timestamp. Used for CSRF, etc..
+   *
+   * TODO: Sign the token with a server-side secret so we can ensure that it's valid later on.
+   * This will have to be implemented after Bun 1.0 is released. I assume that the crypto library will be more
+   * fully developed by then.
+   */
+  createSecureToken(encoding: BufferEncoding = "base64") {
+    // const secret = "123412341234";
+    const buffer = Buffer.from(ncrypto.randomBytes(64));
+    buffer.write(Date.now().toString(), 8);
+    // crypto.subtle.sign("sha256", buffer, secret);
+    // const signed = crypto.sign("sha256", buffer, secret);
+    // const verify = crypto.verify("sha256", )
+    return buffer.toString(encoding);
   }
 
   // Helper for accessing a service from the engine.

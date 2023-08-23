@@ -38,10 +38,9 @@ export default class WebSocketEndpoint {
   constructor(engine: Engine, ws: ServerWebSocket, message?: string | Buffer) {
     this.timeStart = hrtime.bigint();
     this.message = message;
+    this.parseMessage();
     this.engine = engine;
     this.ws = ws;
-
-    this.parseMessage();
   }
 
   // Returns the websocket token.
@@ -65,7 +64,7 @@ export default class WebSocketEndpoint {
         const json = JSON.parse(this.message.toString());
         this.parsedMessage = {
           event: json.event,
-          parameters: json.params,
+          parameters: json.data,
         };
       } catch (e) {
         // This request is not a JSON message.
@@ -111,11 +110,10 @@ export default class WebSocketEndpoint {
    */
   ratelimit(context: string): boolean {
     // Adds the remoteAddress to the context key.
+    // TODO: This
     context += `/${this.ws.remoteAddress}`;
     console.log(context);
-
     // Check the engine if the rate limit with the specified context has reached its limit.
-
     return true;
   }
 
