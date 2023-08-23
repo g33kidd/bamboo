@@ -24,6 +24,11 @@ export type MessageParameters = {
  *       the appropriate action.
  *
  *      Message -> {action: "auth", params: { token: "1234" }}
+ *
+ *  NOTE: ^^ this changed, it's now {event: string, data: object}
+ *
+ *
+ * TODO: Request ID
  */
 export default class WebSocketEndpoint {
   ws: ServerWebSocket;
@@ -43,7 +48,15 @@ export default class WebSocketEndpoint {
     this.ws = ws;
   }
 
-  // Returns the websocket token.
+  /**
+   * To keep track of a connection, you can pass in a token when connecting through a WebSocket client.
+   * This token can then be used to update the list of active connections & send messages to the socket outside of actions/pipes.
+   * On the web, this would look like:
+   *
+   *    new WebSocket("wss://{host}/ws?token={token}")
+   *
+   * where {token} is potentially created using createSecureToken().
+   */
   getToken() {
     if (this.ws.data) {
       const data = this.ws.data as any;
@@ -57,7 +70,9 @@ export default class WebSocketEndpoint {
     }
   }
 
-  // Determines the action and parameters sent in.
+  /**
+   * Converts the received string message into an object.
+   */
   parseMessage() {
     if (this.message) {
       try {
@@ -75,11 +90,13 @@ export default class WebSocketEndpoint {
     }
   }
 
+  // TODO: Move functions like this into a base class that can be used by Endpoint and WebSocketEndpoint.
   // Helper for accessing a service from the engine.
   service<T>(name: string): T {
     return this.engine.service<T>(name);
   }
 
+  // TODO: Move functions like this into a base class that can be used by Endpoint and WebSocketEndpoint.
   // Returns the time taken to handle the request in microseconds.
   time(): number {
     if (this.timeEnd) {
@@ -89,6 +106,7 @@ export default class WebSocketEndpoint {
     }
   }
 
+  // TODO: Move functions like this into a base class that can be used by Endpoint and WebSocketEndpoint.
   // Returns debug information about this Endpoint.
   debug() {
     const time = this.time();
@@ -99,11 +117,6 @@ export default class WebSocketEndpoint {
       `[WS ${this.ws.readyState}] ${this.parsedMessage?.event} in ${timeDisplay}`
     );
   }
-
-  /**
-   * Forcefully closes a connection
-   */
-  forceClose = async (message: string) => this.ws.terminate();
 
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
@@ -153,4 +166,5 @@ export default class WebSocketEndpoint {
   // Utility functions for performing actions on the WS itself.
   subscribe = (topic: string) => this.ws.subscribe(topic);
   unsubscribe = (topic: string) => this.ws.unsubscribe(topic);
+  forceClose = async (_message: string) => this.ws.terminate();
 }
