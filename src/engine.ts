@@ -50,8 +50,8 @@ export default class Engine {
   workers: Map<string, Worker> = new Map();
 
   // Rate Limiting
-  rateLimiters?: Map<string, EngineLimiter>;
-  // This needs to support an external service like redis or use an internal TCP service.
+  rateLimiters: Map<string, EngineLimiter>;
+  // This needs to support an external service like redis.
   rateCache?: Map<string, number>;
 
   websocketRegistry?: WebSocketActionRegistry;
@@ -63,6 +63,7 @@ export default class Engine {
   // websocketRegistry: WebSocketActionRegistry = new WebSocketActionRegistry();
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
+    this.rateLimiters = new Map();
     this.config = appConfig;
 
     // Setup EventEmitter for sending publish requests to the server.
@@ -323,7 +324,29 @@ export default class Engine {
     return endpoint;
   }
 
-  ratelimit(context: string, limit: number = 60): boolean {
+  /**
+   * Checks if a context's ratelimit has been exceeded.
+   *
+   * TODO: Finish this, include the timestamp of the first request & most recent request to determine
+   * if the limit should be reset, keep counting, or deny requests.
+   */
+  ratelimit(
+    context: string,
+    limit: number = 60,
+    interval: number = 1000 * 60
+  ): boolean {
+    const limiterContext = context.split("/")[0]; // removes the IP hash from the context.
+    const limiter = this.rateLimiters.get(limiterContext);
+
+    // Create a limiter if there is none specified at Engine start.
+    if (!limiter) {
+      this.rateLimiters.set(limiterContext, {
+        amount: limit,
+        perIntervalMs: interval,
+      });
+    }
+
+    let now = Date.now();
     let currentAmount = 0;
 
     if (!this.rateCache) {
@@ -345,6 +368,20 @@ export default class Engine {
     } else {
       return true;
     }
+  }
+
+  /**
+   * Creates a limiter.
+   *
+   * @param context The ratelimit context.
+   * @param limit Number of requests allowed.
+   * @param interval Interval in which the limit is allowed.
+   */
+  limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
+    this.rateLimiters?.set(context, {
+      amount: limit,
+      perIntervalMs: interval,
+    });
   }
 
   // Handles global application pipes.
