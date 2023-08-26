@@ -66,7 +66,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
 
   // TODO: Support multiple static paths. This needs to be combined with the pathMap above.
   if (!staticPaths) {
-    staticPaths = ["static", "assets"];
+    staticPaths = ["static", "assets", "frontend/public"];
   }
 
   const url = endpoint.parseURL();
@@ -153,4 +153,6 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   return endpoint;
 }
 
+// TODO: Make it possible to specify options within a pipe like this. If it's called from elsewhere,
+// the ability to set some options should be present.
 export default new Pipe("static", parseStatic, []);

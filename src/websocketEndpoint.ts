@@ -4,7 +4,7 @@ import { hrtime } from "process";
 
 export type MessageParameters = {
   event: string;
-  parameters?: object;
+  parameters?: any;
 };
 
 /**
