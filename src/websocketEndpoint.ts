@@ -1,5 +1,5 @@
 import { ServerWebSocket } from "bun";
-import { Engine } from "..";
+import { engine } from "..";
 import { hrtime } from "process";
 
 export type MessageParameters = {
@@ -32,7 +32,6 @@ export type MessageParameters = {
  */
 export default class WebSocketEndpoint {
   ws: ServerWebSocket;
-  engine: Engine;
   compressed: boolean = false;
   parsedMessage?: MessageParameters;
   message?: string | Buffer;
@@ -40,11 +39,10 @@ export default class WebSocketEndpoint {
   timeStart: bigint;
   timeEnd?: bigint;
 
-  constructor(engine: Engine, ws: ServerWebSocket, message?: string | Buffer) {
+  constructor(ws: ServerWebSocket, message?: string | Buffer) {
     this.timeStart = hrtime.bigint();
     this.message = message;
     this.parseMessage();
-    this.engine = engine;
     this.ws = ws;
   }
 
@@ -93,7 +91,7 @@ export default class WebSocketEndpoint {
   // TODO: Move functions like this into a base class that can be used by Endpoint and WebSocketEndpoint.
   // Helper for accessing a service from the engine.
   service<T>(name: string): T {
-    return this.engine.service<T>(name);
+    return engine.service<T>(name);
   }
 
   // TODO: Move functions like this into a base class that can be used by Endpoint and WebSocketEndpoint.
@@ -125,7 +123,7 @@ export default class WebSocketEndpoint {
     const ip = this.ws.remoteAddress.toString();
     const ipHash = Buffer.from(ip).toString("base64");
     context += `/${ipHash}`;
-    return this.engine.ratelimit(context, limit);
+    return engine.ratelimit(context, limit);
   }
 
   /**

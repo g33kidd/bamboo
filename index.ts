@@ -1,5 +1,5 @@
 import Endpoint from "./src/endpoint";
-import Engine from "./src/engine";
+import engine, { Engine } from "./src/engine";
 import Pipe, { pipe } from "./src/pipe";
 import Action, { action } from "./src/actions/action";
 import ActionGroup, { group } from "./src/actions/group";
@@ -12,6 +12,7 @@ import WebSocketPipe, { wsPipe } from "./src/websocketPipe";
 import staticPipe from "./src/pipes/static";
 
 export {
+  engine,
   Engine,
   Endpoint,
   WebSocketEndpoint,

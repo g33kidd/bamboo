@@ -1,6 +1,7 @@
 import Endpoint from "../endpoint";
 import Pipe from "../pipe";
 import path, { join } from "path";
+import engine from "../engine";
 
 export type FileTypes = { [ext: string]: string };
 
@@ -61,8 +62,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   // Path mapping needs to be a thing
   // Will be used to search directories or rewrite them.
   // This is needed while running a vite development server, because some assets come from node_modules.
-  const pathMap: Map<string, string> =
-    endpoint.engine.config.pathMap ?? new Map();
+  const pathMap: Map<string, string> = engine.config?.pathMap ?? new Map();
 
   // TODO: Support multiple static paths. This needs to be combined with the pathMap above.
   if (!staticPaths) {
@@ -121,7 +121,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
     }
   }
 
-  const fileUrl = path.join(directory, url.join("/"));
+  // const fileUrl = path.join(directory, url.join("/"));
   // console.log(fileUrl);
   // const file = Bun.file(fileUrl);
   // const exists = await file.exists();

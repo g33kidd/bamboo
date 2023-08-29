@@ -1,9 +1,9 @@
 import { hrtime } from "process";
 import Engine from "./engine";
 import * as ncrypto from "node:crypto";
+import { engine } from "..";
 
 export default class Endpoint {
-  engine: Engine;
   // server: Server;
   request: Request;
   response?: Response;
@@ -17,14 +17,13 @@ export default class Endpoint {
   timeStart: bigint;
   timeEnd?: bigint;
 
-  constructor(_request: Request, _engine: Engine) {
+  constructor(_request: Request) {
     if (!_request || typeof _request === "undefined") {
       throw new Error("Cannot create an Endpoint with an empty response.");
     }
 
     this.timeStart = hrtime.bigint();
     this.url = new URL(_request.url);
-    this.engine = _engine;
     this.stashMap = new Map();
     this.request = _request;
     this.parts = this.parseURL();
@@ -59,17 +58,19 @@ export default class Endpoint {
 
   // Helper for accessing a service from the engine.
   service<T>(name: string): T {
-    return this.engine.service<T>(name);
+    return engine.service<T>(name);
   }
 
   // Returns debug information about this Endpoint.
-  debug() {
+  async debug() {
     const time = this.time();
     const timeDisplay =
       time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`;
 
+    const buffer = await this.response?.arrayBuffer();
+
     console.log(
-      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`
+      `[${this.request.method}] ${this.url.pathname} (${buffer?.byteLength} bytes) -> ${this.response?.status} in ${timeDisplay}`
     );
   }
 
@@ -125,7 +126,7 @@ export default class Endpoint {
   // Creates an HTML response based on an edge.js template defined in the views folder.
   async view(path: string, params?: object) {
     if (!this.locked) {
-      const html = await this.engine.edge.render(path, this.viewData(params));
+      const html = await engine.edge.render(path, this.viewData(params));
       this.response = new Response(html, {
         headers: {
           "Content-Type": "text/html",
