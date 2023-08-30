@@ -61,14 +61,12 @@ export class Engine {
 
   edge: Edge;
 
-  // websocketRegistry: WebSocketActionRegistry = new WebSocketActionRegistry();
-
   configure(config: EngineConfig) {
     if (!this.config.pathMap) {
       this.config.pathMap = new Map<string, string>();
     }
 
-    console.log(this.config.paths);
+    // console.log(this.config.paths);
     this.edge.mount(this.config.paths.views);
 
     // Copy pipes from the config into the Engine.
@@ -135,6 +133,8 @@ export class Engine {
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.rateLimiters = new Map();
     this.config = appConfig;
+
+    this.config.pathMap = new Map();
 
     // Setup EventEmitter for sending publish requests to the server.
 

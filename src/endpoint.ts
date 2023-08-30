@@ -4,7 +4,6 @@ import * as ncrypto from "node:crypto";
 import { engine } from "..";
 
 export default class Endpoint {
-  // server: Server;
   request: Request;
   response?: Response;
   parts: string[];
@@ -19,7 +18,7 @@ export default class Endpoint {
 
   constructor(_request: Request) {
     if (!_request || typeof _request === "undefined") {
-      throw new Error("Cannot create an Endpoint with an empty response.");
+      throw new Error("Cannot create an Endpoint with an empty request.");
     }
 
     this.timeStart = hrtime.bigint();
@@ -27,7 +26,6 @@ export default class Endpoint {
     this.stashMap = new Map();
     this.request = _request;
     this.parts = this.parseURL();
-    // this.server = _server;
   }
 
   // Returns the time taken to handle the request in microseconds.
@@ -67,10 +65,8 @@ export default class Endpoint {
     const timeDisplay =
       time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`;
 
-    const buffer = await this.response?.arrayBuffer();
-
     console.log(
-      `[${this.request.method}] ${this.url.pathname} (${buffer?.byteLength} bytes) -> ${this.response?.status} in ${timeDisplay}`
+      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`
     );
   }
 
