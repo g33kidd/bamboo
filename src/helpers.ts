@@ -1,5 +1,11 @@
 import { Endpoint, WebSocketEndpoint } from "..";
 
+// type ModifyProps = {};
+
+// export async function modify(endpoint: Endpoint, props: ModifyProps) {
+
+// }
+
 /**
  * Setup an endpoint with a JSON Response.
  */

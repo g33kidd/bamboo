@@ -128,6 +128,8 @@ export class Engine {
         this.registry.action(actionOrGroup);
       }
     }
+
+    return this;
   }
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
@@ -156,6 +158,8 @@ export class Engine {
     if (this.config.pathMap) {
       this.config.pathMap.set(from, to);
     }
+
+    return this;
   }
 
   service<T>(name: string): T {
@@ -188,7 +192,7 @@ export class Engine {
   // Starts the application server.
   serve() {
     const engine = this;
-    const hostname = process.env.HOST_NAME || "localhost";
+    const hostname = process.env.HOST_NAME || "0.0.0.0";
     const port = process.env.PORT || 3000;
 
     if (typeof this.server === "undefined") {
