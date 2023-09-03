@@ -25,11 +25,16 @@ export default class Endpoint {
     this.url = new URL(_request.url);
     this.stashMap = new Map();
     this.request = _request;
-    this.parts = this.parseURL();
+
+    const parts = this.url.pathname.split("/");
+    parts.shift();
+    this.parts = parts;
   }
 
-  // Returns the time taken to handle the request in microseconds.
-  time(): number {
+  /**
+   * Returns the time it took between the start and end of the request.
+   */
+  time() {
     if (this.timeEnd) {
       return Number(this.timeEnd - this.timeStart) / 1000;
     } else {
@@ -54,12 +59,19 @@ export default class Endpoint {
     return buffer.toString(encoding);
   }
 
-  // Helper for accessing a service from the engine.
+  /**
+   * Helper for accessing a service from the engine.
+   * @param name Name of the service.
+   * @returns T
+   */
   service<T>(name: string): T {
     return engine.service<T>(name);
   }
 
-  // Returns debug information about this Endpoint.
+  /**
+   * Logs general debug information to the console.
+   * Currently only used to display the method, path, status and amount of time it took to process the request.
+   */
   async debug() {
     const time = this.time();
     const timeDisplay =
@@ -70,7 +82,14 @@ export default class Endpoint {
     );
   }
 
-  // Gets a header from the request.
+  /**
+   * Fetches a value from the HTTP Request Headers. Returns a default value
+   * if specified and null otherwise.
+   *
+   * @param name The name of the header. For example: Authorization
+   * @param defaultValue The default value to use.
+   * @returns header value, default value or null.
+   */
   header(name: string, defaultValue?: any): string {
     if (this.request.headers.get(name) !== null) {
       return this.request.headers.get(name) as string;
@@ -79,7 +98,9 @@ export default class Endpoint {
     return defaultValue || null;
   }
 
-  // Stores a value in the Endpoint stash for later usage.
+  /**
+   * Stores a value in the Endpoint stash for use later on in the request lifecycle.
+   */
   stash(key: string, value?: any) {
     if (!this.stashMap.has(key)) {
       this.stashMap.set(key, value);
@@ -110,7 +131,13 @@ export default class Endpoint {
     }
   }
 
-  // Gets a value from the Endpoint stash.
+  /**
+   * Retrieves a value from the stash.
+   *
+   * @param key
+   * @param defaultValue
+   * @returns stash[key] value or defaultValue or null.
+   */
   fromStash(key: string, defaultValue?: any) {
     if (this.stashMap.has(key)) {
       return this.stashMap.get(key);
@@ -119,10 +146,20 @@ export default class Endpoint {
     return defaultValue || null;
   }
 
-  // Creates an HTML response based on an edge.js template defined in the views folder.
+  /**
+   * Creates an HTML response based on an edge.js template defined in the views folder.
+   *
+   * @param path view path.
+   * @param params an object containing values to be used in the template.
+   * @returns rendered html
+   */
   async view(path: string, params?: object) {
     if (!this.locked) {
-      const html = await engine.edge.render(path, this.viewData(params));
+      const html = await engine.edge.render(path, {
+        isDev: process.env.NODE_ENV === "development",
+        ...params,
+      });
+
       this.response = new Response(html, {
         headers: {
           "Content-Type": "text/html",
@@ -135,16 +172,10 @@ export default class Endpoint {
     return this;
   }
 
-  // Creates an object of properties to be used in view templates.
-  viewData(params?: object): object {
-    return {
-      isDev: process.env.NODE_ENV === "development",
-      ...params,
-    };
-  }
-
   /**
-   * Sends a file as a response and compresses it using GZIP if specified.
+   * Sends a file as a response.
+   *
+   * TODO: Compression.
    */
   async file(path: string) {
     if (!this.locked) {
@@ -163,7 +194,14 @@ export default class Endpoint {
     return this;
   }
 
-  // Returns a response as JSON.
+  /**
+   * Creates a JSON response.
+   *
+   * @param data
+   * @param status
+   * @param statusText
+   * @returns Endpoint
+   */
   json(data: any, status: number = 200, statusText: string = "OK") {
     if (!this.locked) {
       const json = JSON.stringify(data);
@@ -206,12 +244,5 @@ export default class Endpoint {
     }
 
     return this;
-  }
-
-  // Splits the request URL
-  parseURL() {
-    const parts = this.url.pathname.split("/");
-    parts.shift();
-    return parts;
   }
 }

@@ -69,7 +69,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
     staticPaths = ["static", "assets", "frontend/public"];
   }
 
-  const url = endpoint.parseURL();
+  const url = endpoint.parts;
   const expectedExt = url[url.length - 1].split(".")[1];
   const ext = isSupported(expectedExt) ? expectedExt : null;
 
