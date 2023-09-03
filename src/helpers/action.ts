@@ -3,7 +3,7 @@ import Endpoint from "../endpoint";
 export function parseActionURL(endpoint: Endpoint) {
   const parsed: string[] = [];
 
-  const url = endpoint.parseURL();
+  const url = endpoint.parts;
 
   // This might be needed in the future.
   // Remove the first blank entry.
