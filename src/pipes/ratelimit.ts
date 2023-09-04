@@ -2,7 +2,7 @@ import Pipe from "../pipe";
 
 export default new Pipe(
   "ratelimit",
-  (endpoint) => {
+  async (endpoint) => {
     return endpoint;
   },
   []

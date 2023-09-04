@@ -130,8 +130,16 @@ export default class WebSocketEndpoint {
    * Gets a parameter from the message payload.
    * NOTE: This only works if the expected payload is JSON.
    */
-  async param(key: string, defaultValue?: any) {
-    // TODO: This
+  param(key: string, defaultValue?: any) {
+    if (this.parsedMessage && this.parsedMessage?.parameters) {
+      if (Object.hasOwn(this.parsedMessage.parameters, key)) {
+        return this.parsedMessage.parameters[key];
+      } else {
+        return defaultValue || null;
+      }
+    } else {
+      return defaultValue || null;
+    }
   }
 
   /**

@@ -1,5 +1,7 @@
 import { Subprocess } from "bun";
 import { Engine } from "../engine";
+import { join } from "path";
+import Bamboo from "../bamboo";
 
 /**
  * DevHub allows the developer of the application to visualize more than
@@ -14,6 +16,9 @@ import { Engine } from "../engine";
  *
  * A few issues that have come up with testing:
  *    It does not reload properly if using --hot or --watch.
+ *
+ *
+ * Devhub uses a .bamboo file to keep track of processes that should be killed off after it restarts.
  */
 
 type DevHubExtension = DevHubExtensionConfig | string | string[];
@@ -35,10 +40,38 @@ const streams = new Map<string, ReadableStream>();
 
 // Adds each configured extension to the engine and setup endpoints to view the devhub.
 export default async function devhub(engine: Engine, options: DevHubConfig) {
+  // let bamboo: { pids: number[] } = { pids: [] };
+  // const bamboopath = join(process.cwd(), ".bamboo");
+  // const bamboofile = Bun.file(bamboopath);
+  // const bambooFileExists = await bamboofile.exists();
+
+  // if (!bambooFileExists) {
+  //   console.log("creating .bamboo file...");
+  //   await Bun.write(bamboopath, JSON.stringify(bamboo));
+  // } else {
+  //   console.log("reading .bamboo file...");
+  //   bamboo = await bamboofile.json();
+  //   console.log(bamboo);
+  // }
+
+  // // Kill off any processes that haven't been killed off.
+  // if (bamboo.pids.length > 0) {
+  //   for (let i = 0; i < bamboo.pids.length; i++) {
+  //     const pid = bamboo.pids[i];
+  //     try {
+  //       process.kill(pid, 0);
+  //     } catch (e) {
+  //       // Failed to kill PID, likely that it doesn't exist anymore.
+  //       // console.error(e);
+  //     }
+  //   }
+  //   bamboo.pids = [];
+  // }
+
   console.log("devhub enabled...");
 
   if (Object.keys(options).length <= 0) {
-    console.info("no devhub extensions found");
+    console.info("no devhub extensions found...");
     return;
   }
 
@@ -49,10 +82,10 @@ export default async function devhub(engine: Engine, options: DevHubConfig) {
         cmd: options[key] as string[],
         env: { ...process.env },
         onExit(subprocess, exitCode, signalCode, error) {
-          Bun.write("./log.txt", error?.stack?.toString() || "exited");
+          // Bun.write("./log.txt", error?.stack?.toString() || "exited");
         },
       });
-      // proc.unref();
+      // bamboo.pids.push(proc.pid);
       extensions.set(key, [options[key], proc]);
       streams.set(key, proc.stdout);
     } else if (options[key] instanceof String) {
@@ -69,18 +102,14 @@ export default async function devhub(engine: Engine, options: DevHubConfig) {
           cwd: extension.cwd,
           env: { ...process.env, ...extension.env },
         });
-        // proc.unref();
+        // bamboo.pids.push(proc.pid);
         extensions.set(key, [options[key], proc]);
         streams.set(key, proc.stdout);
       }
     }
   });
 
-  // process.on("beforeExit", () => {
-  //   extensions.forEach((e) => e[1]?.unref());
-  //   streams.forEach((s) => s.cancel());
-  // });
-
+  // await Bun.write(bamboofile, JSON.stringify(bamboo));
   await Promise.all(
     Array.from(streams).map(async ([name, stream], index) => {
       for await (const chunk of stream) {

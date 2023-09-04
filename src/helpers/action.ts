@@ -5,10 +5,6 @@ export function parseActionURL(endpoint: Endpoint) {
 
   const url = endpoint.parts;
 
-  // This might be needed in the future.
-  // Remove the first blank entry.
-  // url.shift();
-
   // Remove the last blank entry, if there is one.
   if (url[url.length - 1] === "") url.pop();
 

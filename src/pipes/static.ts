@@ -1,5 +1,5 @@
 import Endpoint from "../endpoint";
-import Pipe from "../pipe";
+import Pipe, { pipe } from "../pipe";
 import path, { join } from "path";
 import engine from "../engine";
 
@@ -43,7 +43,7 @@ export const SUPPORTED_FILE_TYPES: FileTypes = {
   mjs: "application/javascript",
   wasm: "application/wasm",
   ts: "application/javascript",
-  // Add more file types here if needed
+  // TODO: Support more file types.
 };
 
 const CACHE_DURATION = 3600; // Cache duration in seconds (1 hour)
@@ -155,4 +155,9 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
 
 // TODO: Make it possible to specify options within a pipe like this. If it's called from elsewhere,
 // the ability to set some options should be present.
-export default new Pipe("static", parseStatic, []);
+
+/**
+ * Helper function for creating a new Pipe().
+ * @param
+ */
+export default pipe("static", parseStatic, []);

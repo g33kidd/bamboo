@@ -6,22 +6,21 @@ export type WebSocketPipeHandler = (
   endpoint: WebSocketEndpoint
 ) => Promise<WebSocketEndpoint>;
 
-// TODO: Remove the need for duplication here..
 export default class WebSocketPipe {
   name: string;
   handler: WebSocketPipeHandler;
 
   constructor(
-    _name: string,
-    _handler: WebSocketPipeHandler,
-    _prereq?: Array<string>
+    name: string,
+    handler: WebSocketPipeHandler,
+    prereq?: Array<string>
   ) {
-    if (_name.length <= 0) {
+    if (name.length <= 0) {
       throw new Error("Cannot create a Pipe with no name.");
     }
 
-    this.name = _name;
-    this.handler = _handler;
+    this.name = name;
+    this.handler = handler;
   }
 
   async handle(endpoint: WebSocketEndpoint) {
@@ -29,11 +28,13 @@ export default class WebSocketPipe {
   }
 }
 
-// Prereq is currently unused.
+/**
+ * Creates a new WebSocket pipe.
+ */
 export function wsPipe(
-  _name: string,
-  _handler: WebSocketPipeHandler,
-  _prereq?: Array<string>
+  name: string,
+  handler: WebSocketPipeHandler,
+  prereq?: Array<string>
 ) {
-  return new WebSocketPipe(_name, _handler, _prereq);
+  return new WebSocketPipe(name, handler, prereq);
 }

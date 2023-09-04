@@ -22,12 +22,29 @@ export default class ActionRegistry {
       const pathPart = path[i];
       const isLastPart = i === path.length - 1;
 
-      if (!currentRegistryDefinition.has(pathPart)) {
-        const item = isLastPart ? action : new Map();
-        currentRegistryDefinition.set(pathPart, item);
+      if (!isLastPart) {
+        // Look ahead and see if there's an existing entry, because the existing entry should be set to
+        // __root if it's the only entry and it matches the current pathPart.
       }
 
-      currentRegistryDefinition = currentRegistryDefinition.get(pathPart);
+      if (currentRegistryDefinition instanceof Action) {
+        // console.log(pathPart);
+        // We can assume that this is the new root since an action exists here.
+        // const newRegistryDefinition = new Map<string, any>();
+        // newRegistryDefinition.set("__root", currentRegistryDefinition);
+        // currentRegistryDefinition = newRegistryDefinition;
+        // if (!currentRegistryDefinition.has(pathPart)) {
+        //   const item = isLastPart ? action : new Map();
+        //   currentRegistryDefinition.set(pathPart, item);
+        // }
+        // currentRegistryDefinition = currentRegistryDefinition.get(pathPart);
+      } else {
+        if (!currentRegistryDefinition.has(pathPart)) {
+          const item = isLastPart ? action : new Map();
+          currentRegistryDefinition.set(pathPart, item);
+        }
+        currentRegistryDefinition = currentRegistryDefinition.get(pathPart);
+      }
     }
 
     this.store.set(method, current); // Update the store with the new action
