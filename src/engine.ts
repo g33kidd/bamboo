@@ -192,13 +192,11 @@ export class Engine {
   // Starts the application server.
   serve() {
     const engine = this;
-    const hostname = process.env.HOST_NAME || "0.0.0.0";
-    const port = process.env.PORT || 3000;
 
     if (typeof this.server === "undefined") {
       this.server = Bun.serve({
-        hostname,
-        port,
+        hostname: "0.0.0.0",
+        port: 3000,
         async fetch(request: Request, server: Server) {
           const endpoint = new Endpoint(request);
 
