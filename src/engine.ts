@@ -7,7 +7,7 @@ import ActionRegistry, { ActionWithParams } from "./actions/registry";
 import { parseActionURL } from "./helpers/action";
 import { ServerWebSocket, Serve, Server } from "bun";
 import Service from "./service";
-import WebSocketEndpoint from "./websocketEndpoint";
+import WebSocketEndpoint, { WebSocketEndpointData } from "./websocketEndpoint";
 import WebSocketPipe from "./websocketPipe";
 import WebSocketAction from "./actions/websocketAction";
 import { Edge } from "edge.js";
@@ -219,12 +219,17 @@ export class Engine {
           return endpoint.response;
         },
         websocket: {
-          async open(ws: ServerWebSocket<undefined>) {
+          async open(ws: ServerWebSocket<WebSocketEndpointData>) {
             // This should add this connection to somewhere?
             const endpoint = new WebSocketEndpoint(ws);
-            const token = (endpoint.ws.data as any).token;
+            const token = endpoint.getToken();
 
             // A page refresh might be needed on the client to get a new token.
+            /**
+             * This token should also be shuffled. If an attacker gets access to the token
+             * for a user then they might be able to wiggle their way in? More research is
+             * needed here for sure.
+             */
             if (engine.websocketClients.has(token)) {
               ws.terminate();
               return;
@@ -233,6 +238,8 @@ export class Engine {
             }
 
             ws.subscribe(`client:${token}`);
+
+            // TOOD: We should probably setup a token here that can be used alongside restamping.
             ws.send(
               JSON.stringify({
                 event: "connected",
@@ -257,15 +264,18 @@ export class Engine {
             }
           },
           async message(
-            ws: ServerWebSocket<undefined>,
+            ws: ServerWebSocket<any>,
             message: string | Buffer
           ): Promise<void> {
             if (message.length === 0) return;
             let endpoint = new WebSocketEndpoint(ws, message);
-            // Pipes run before the actions and can modify the endpoint.
+            // TODO: Don't run anything if the response is locked. This requires an explicit call to lock()
+            // if (!endpoint.locked) {
+            // Pipes run before the actions and can modify the endpoint or terminate it.
             endpoint = await engine.handleWebSocketPipes(endpoint);
             // Actions do not directly modify the endpoint, so it only needs to take action on the endpoint.
             await engine.handleWebSocketAction(endpoint);
+            // }
           },
         },
       });

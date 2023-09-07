@@ -30,20 +30,100 @@ export type MessageParameters = {
  *
  * TODO: Request ID
  */
+export type WebSocketEndpointData = { [key: string]: any };
 export default class WebSocketEndpoint {
-  ws: ServerWebSocket;
+  ws: ServerWebSocket<WebSocketEndpointData>;
+  locked: boolean = false;
   compressed: boolean = false;
+  stashMap: Map<string, any> = new Map();
   parsedMessage?: MessageParameters;
   message?: string | Buffer;
   response?: string;
   timeStart: bigint;
   timeEnd?: bigint;
 
-  constructor(ws: ServerWebSocket, message?: string | Buffer) {
+  // I am using <any> here because I don't know the structure of data at the moment.
+  // I'll add to it, then when I am sure of the structure I will add the type definition.
+  constructor(
+    ws: ServerWebSocket<WebSocketEndpointData>,
+    message?: string | Buffer
+  ) {
     this.timeStart = hrtime.bigint();
     this.message = message;
     this.parseMessage();
     this.ws = ws;
+  }
+
+  /**
+   * Locks this request from being modified again.
+   */
+  lock() {
+    this.locked = true;
+  }
+
+  /**
+   * TODO: Improve this functionality. Ideally, it should allow for data to be listened to.
+   */
+
+  /**
+   * Adds data to the websocket connection.
+   */
+  push(key: string, value: any) {
+    this.ws.data[key] = value;
+  }
+
+  /**
+   * Adds data to the websocket context in bulk.
+   */
+  pushMany(data: { [key: string]: any }) {
+    this.ws.data = { ...this.ws.data, ...data };
+  }
+
+  /** Gets data from the websocket context. */
+  get(key: string, defaultValue?: any) {
+    return this.ws.data[key] || defaultValue || null;
+  }
+
+  /**
+   * Removes data from the websocket context.
+   */
+  remove(key: string) {
+    if (Object.hasOwn(this.ws.data, key)) {
+      delete this.ws.data[key];
+    }
+  }
+
+  /**
+   * Stores a value in the Endpoint stash for use later on in the request lifecycle.
+   *
+   * TODO|NOTE: this was copied from Endpoint. Create an endpoint base class.
+   */
+  stash(key: string, value?: any) {
+    if (!this.stashMap.has(key)) {
+      this.stashMap.set(key, value);
+    } else {
+      // If there is no value, assume that we're trying to fetch the value.
+      if (!value) {
+        return this.stashMap.get(key);
+      }
+    }
+  }
+
+  /**
+   * Retrieves a value from the stash.
+   *
+   * TODO|NOTE: this was copied from Endpoint. Create an endpoint base class.
+   *
+   * @param key
+   * @param defaultValue
+   * @returns stash[key] value or defaultValue or null.
+   */
+  fromStash(key: string, defaultValue?: any) {
+    if (this.stashMap.has(key)) {
+      return this.stashMap.get(key);
+    }
+
+    return defaultValue || null;
   }
 
   /**
@@ -145,9 +225,24 @@ export default class WebSocketEndpoint {
   /**
    * Sends a JSON response to the websocket.
    */
-  async json(data: any) {
-    this.response = JSON.stringify({ event: this.parsedMessage?.event, data });
-    this.send();
+  async json(data: any, lock = false) {
+    const resp = JSON.stringify({
+      event: this.parsedMessage?.event,
+      data,
+    });
+
+    if (lock) {
+      if (!this.locked) {
+        this.response = resp;
+        this.lock();
+        this.send();
+      }
+    } else {
+      this.response = resp;
+      this.lock();
+      this.send();
+    }
+
     return this;
   }
 

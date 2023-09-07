@@ -113,6 +113,21 @@ export default class Endpoint {
   }
 
   /**
+   * Retrieves a value from the stash.
+   *
+   * @param key
+   * @param defaultValue
+   * @returns stash[key] value or defaultValue or null.
+   */
+  fromStash(key: string, defaultValue?: any) {
+    if (this.stashMap.has(key)) {
+      return this.stashMap.get(key);
+    }
+
+    return defaultValue || null;
+  }
+
+  /**
    * Returns either a parameter from a JSON body or a search param.
    * Or returns the default value if specified, or returns null.
    */
@@ -129,21 +144,6 @@ export default class Endpoint {
     } else {
       return param;
     }
-  }
-
-  /**
-   * Retrieves a value from the stash.
-   *
-   * @param key
-   * @param defaultValue
-   * @returns stash[key] value or defaultValue or null.
-   */
-  fromStash(key: string, defaultValue?: any) {
-    if (this.stashMap.has(key)) {
-      return this.stashMap.get(key);
-    }
-
-    return defaultValue || null;
   }
 
   /**
