@@ -69,14 +69,20 @@ export default class WebSocketEndpoint {
    * Adds data to the websocket connection.
    */
   push(key: string, value: any) {
-    this.ws.data[key] = value;
+    this.ws.data = {
+      ...this.ws.data,
+      [key]: value,
+    };
   }
 
   /**
    * Adds data to the websocket context in bulk.
    */
   pushMany(data: { [key: string]: any }) {
-    this.ws.data = { ...this.ws.data, ...data };
+    this.ws.data = {
+      ...this.ws.data,
+      ...data,
+    };
   }
 
   /** Gets data from the websocket context. */
@@ -89,7 +95,9 @@ export default class WebSocketEndpoint {
    */
   remove(key: string) {
     if (Object.hasOwn(this.ws.data, key)) {
-      delete this.ws.data[key];
+      const clone = this.ws.data;
+      delete clone[key];
+      this.ws.data = clone;
     }
   }
 
