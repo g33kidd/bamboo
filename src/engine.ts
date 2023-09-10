@@ -296,7 +296,9 @@ export class Engine {
     return endpoint;
   }
 
-  // Handles a websocket action for an incoming request.
+  /**
+   * Handles a websocket action for an incoming message on an active websocket connection.
+   */
   async handleWebSocketAction(endpoint: WebSocketEndpoint) {
     if (this.websocketRegistry && endpoint.parsedMessage) {
       const action = this.websocketRegistry.parse(endpoint.parsedMessage);

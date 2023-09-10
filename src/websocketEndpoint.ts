@@ -272,6 +272,16 @@ export default class WebSocketEndpoint {
     }
   }
 
+  /**
+   * Sends an operational error message as a response. Code and message are optional.
+   */
+  err(message?: string, code?: number) {
+    return this.json({
+      message: message || "Could not perform this operation.",
+      code: code || 3,
+    });
+  }
+
   // Utility functions for performing actions on the WS itself.
   subscribe = (topic: string) => this.ws.subscribe(topic);
   unsubscribe = (topic: string) => this.ws.unsubscribe(topic);
