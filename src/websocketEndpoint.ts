@@ -76,6 +76,15 @@ export default class WebSocketEndpoint {
   }
 
   /**
+   * Adds data to the websocket context, based on a conditional argument.
+   */
+  pushIf(cond: boolean, key: string, value: any) {
+    if (cond) {
+      this.push(key, value);
+    }
+  }
+
+  /**
    * Adds data to the websocket context in bulk.
    */
   pushMany(data: { [key: string]: any }) {
@@ -105,6 +114,7 @@ export default class WebSocketEndpoint {
    * Stores a value in the Endpoint stash for use later on in the request lifecycle.
    *
    * TODO|NOTE: this was copied from Endpoint. Create an endpoint base class.
+   * endpoints/BaseEndpoint.ts
    */
   stash(key: string, value?: any) {
     if (!this.stashMap.has(key)) {
@@ -155,6 +165,19 @@ export default class WebSocketEndpoint {
       return null;
     }
   }
+
+  /**
+   * TODO: Create an entire token generator within the Engine that can sign/verify and invalidate tokens.
+   *
+   * Shuffles the websocket token that the connection originally started with.
+   * Useful for invalidating the original token and using a token that the user cannot see.
+   */
+  // shuffleToken() {
+  //   if (this.getToken()) {
+  //     // Replace the token with a new token.
+
+  //   }
+  // }
 
   /**
    * Converts the received string message into an object.
@@ -232,6 +255,9 @@ export default class WebSocketEndpoint {
 
   /**
    * Sends a JSON response to the websocket.
+   *
+   * NOTE: This differs from the HTTP Endpoint because you can set a lock or not set a lock.
+   * Since WS is a persistent connection, send as many or as few responses within an action as you want.
    */
   async json(data: any, lock = false) {
     const resp = JSON.stringify({
@@ -255,20 +281,38 @@ export default class WebSocketEndpoint {
   }
 
   /**
+   * Publishes a message to a topic channel (from this connection) as a JSON event.
+   */
+  pub(topic: string, event: string, data: object) {
+    if (this.ws.isSubscribed(topic)) {
+      const response = JSON.stringify({
+        event,
+        data,
+      });
+
+      this.ws.publish(topic, response);
+    } else {
+      throw new Error(
+        "Cannot publish message. Connection not subscribed to topic."
+      );
+    }
+  }
+
+  /**
    * Sends the defined message to the client.
    * Or, if undefined, sends the stored response as a message.
    *
-   * TODO: Refactor this.
+   * TODO: Refactor this. Why?
    */
   send(data?: string | Buffer) {
     if (!data) {
       if (this.response) {
-        const sentBytes = this.ws.send(this.response, this.compressed);
-        console.log(sentBytes);
+        this.ws.send(this.response, this.compressed);
+        // console.log(sentBytes);
       }
     } else {
-      const sentBytes = this.ws.send(data, this.compressed);
-      console.log(sentBytes);
+      this.ws.send(data, this.compressed);
+      // console.log(sentBytes);
     }
   }
 

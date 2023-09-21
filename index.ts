@@ -8,12 +8,16 @@ import WebSocketEndpoint from "./src/websocketEndpoint";
 import WebSocketAction, { ws } from "./src/actions/websocketAction";
 import WebSocketPipe, { wsPipe } from "./src/websocketPipe";
 
+import { ensureStorageDirs } from "./src/storage";
+
 // Internal Pipes
 import staticPipe from "./src/pipes/static";
 import devhub from "./src/extensions/devhub";
 
 export {
   engine,
+
+  //
   Engine,
   Endpoint,
   WebSocketEndpoint,
@@ -23,13 +27,21 @@ export {
   WebSocketAction,
   WebSocketPipe,
   Service,
+
+  //
   action,
   group,
   service,
   ws,
   wsPipe,
   pipe,
+
+  //
+  ensureStorageDirs,
+
+  //
   staticPipe,
-  // Extensions
+
+  //
   devhub,
 };

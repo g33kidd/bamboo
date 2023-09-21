@@ -24,6 +24,10 @@ export default class WebSocketAction {
 
   async handlePipes(endpoint: WebSocketEndpoint) {
     if (this.pipes && this.pipes?.length > 0) {
+      const pipeLogNames = this.pipes.map((p) => p.name).join(" -> ");
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[${this.definition} pipe flow]:\n\n\t${pipeLogNames}\n`);
+      }
       for (let i = 0; i < this.pipes.length; i++) {
         const pipe = this.pipes[i];
         endpoint = await pipe.handle(endpoint);
