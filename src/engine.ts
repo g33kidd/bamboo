@@ -440,7 +440,6 @@ export class Engine {
   }
 }
 
-// NOTE: Does this work with clustering?
 // TODO: Load this information from a configuration file.
 const defaultEngine = new Engine(
   {
