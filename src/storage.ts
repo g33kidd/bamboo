@@ -1,13 +1,22 @@
 import { exists, mkdir } from 'fs/promises'
 import { join } from 'path'
+import { cwd } from 'process'
 
 /**
  * Storage is the 'storage' directory at the root of the application.
  * This ensures that subdirs have been created or do exist.
  */
 export async function ensureStorageDirs(dirs: string[]) {
+  // Make sure the storage directory is available first.
+  const storagePath = join(cwd(), 'storage')
+  const storageExists = await exists(storagePath)
+  if (!storageExists) {
+    console.info("Storage did not exist at", storagePath, ". Creating folder.")
+    await mkdir(storagePath)
+  }
+
   for await (let dir of dirs) {
-    const path = join(process.cwd(), 'storage', dir)
+    const path = join(storagePath, dir)
     const dirExists = await exists(path)
     if (!dirExists) {
       console.info(
