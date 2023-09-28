@@ -7,6 +7,8 @@ import Service, { service } from './src/service'
 import WebSocketEndpoint from './src/websocketEndpoint'
 import WebSocketAction, { ws } from './src/actions/websocketAction'
 import WebSocketPipe, { wsPipe } from './src/websocketPipe'
+import TelegramClient from './src/telegram/client'
+import TelegramServer from './src/telegram/server'
 
 import { ensureStorageDirs, saveFile } from './src/storage'
 
@@ -27,6 +29,10 @@ export {
   WebSocketAction,
   WebSocketPipe,
   Service,
+
+  // Telegram
+  TelegramClient,
+  TelegramServer,
 
   // Web Service Util Methods
   action,

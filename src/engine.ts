@@ -200,8 +200,8 @@ export class Engine {
 
     if (typeof this.server === 'undefined') {
       this.server = Bun.serve({
-        hostname: '0.0.0.0',
-        port: 3000,
+        hostname: process.env.HOSTNAME || '0.0.0.0',
+        port: Number(process.env.PORT) || 3000,
         async fetch(request: Request, server: Server) {
           const endpoint = new Endpoint(request)
 
