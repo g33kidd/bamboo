@@ -2,6 +2,12 @@ import { exists, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { cwd } from 'process'
 
+// TODO: Create methods for deleting entire files or even chunks of files.
+// TODO: Create a method for creating directories.
+
+// NOTE: This should be the same as the implementation in nyra.
+export async function createStorageObject() {}
+
 /**
  * Storage is the 'storage' directory at the root of the application.
  * This ensures that subdirs have been created or do exist.
@@ -11,7 +17,7 @@ export async function ensureStorageDirs(dirs: string[]) {
   const storagePath = join(cwd(), 'storage')
   const storageExists = await exists(storagePath)
   if (!storageExists) {
-    console.info("Storage did not exist at", storagePath, ". Creating folder.")
+    console.info('Storage did not exist at', storagePath, '. Creating folder.')
     await mkdir(storagePath)
   }
 
