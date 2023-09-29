@@ -17,13 +17,20 @@ export default class TelegramServer {
       port,
       socket: {
         open(socket) {
-          console.log('client connected from', socket.remoteAddress)
+          console.log(
+            'client connected from',
+            socket.remoteAddress,
+            `(${server.clients.size} clients now)`,
+          )
         },
         close(socket) {
           server.clients.delete(socket)
         },
         error(socket, error) {
-          console.error(error)
+          console.error('Telegram error: ', error)
+          if (server.clients.has(socket)) {
+            server.clients.delete(socket)
+          }
         },
         data(socket, data) {
           if (data) {
