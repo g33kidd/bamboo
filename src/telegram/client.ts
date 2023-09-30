@@ -67,6 +67,13 @@ export default class TelegramClient {
             }) + '&b',
           )
         },
+        close(socket) {
+          // TODO: Attempt to reconnect.
+          // setTimeout(() => {
+          //   console.log('attempting to reconnect to telegram server...')
+          //   client.connect(hostname, port)
+          // }, 1000)
+        },
         error(socket, error) {
           console.error(error)
         },

@@ -17,11 +17,7 @@ export default class TelegramServer {
       port,
       socket: {
         open(socket) {
-          console.log(
-            'client connected from',
-            socket.remoteAddress,
-            `(${server.clients.size} clients now)`,
-          )
+          console.log('Client 🗞️ connected from', socket.remoteAddress)
         },
         close(socket) {
           server.clients.delete(socket)
@@ -43,6 +39,7 @@ export default class TelegramServer {
                 if (payload.connect && payload.machineId) {
                   socket.data = { id: payload.machineId }
                   server.clients.add(socket)
+                  console.log(`clients now: ${server.clients.size} `)
                 } else {
                   const message: Message = payload
                   if (message) {
