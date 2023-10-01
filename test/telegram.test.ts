@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { TelegramClient, TelegramServer } from '..'
 import { TelegramClientOpts } from '../src/telegram/client'
 
@@ -11,6 +11,11 @@ const clientDefaults: TelegramClientOpts = {
 }
 
 describe('Telegram', () => {
+  afterAll(() => {
+    server.socket?.unref()
+    server.socket?.stop()
+  })
+
   test('server handles client disconnect.', async () => {
     const client = new TelegramClient(clientDefaults)
     await Bun.sleep(5)

@@ -28,21 +28,19 @@ Here's a current list of features both implemented and planned:
 - HTTP Routing & WebSocket Routing
 - Built-in static asset handling w/ directory remapping.
 - WebSockets with individual connection state.
+- DevServer utilities. [WIP]
 - Background Services [WIP]
 - Distributed Messaging [WIP]
+- Extensions [WIP]
+  - Devhub
 - Storage [WIP]
-  - External service providers needs to be implemented.
-  - Galaxy management w/ a web interface.
-  - Authorization for storage objects.
+  - External service providers. [PLAN]
+  - Galaxy management w/ a web interface. [PLAN]
+  - Authorization for storage objects. [PLAN]
 - Rooms (Channels) API [WIP]
   - Currently there is pub/sub.
 
-Here are some things that will be worked on in the near future:
-
-- Authentication/authorization.
-- Improved typings.
-
-##### Distributed Messaging
+#### Distributed Messaging
 
 Using the built-in `TelegramClient` and `TelegramServer` you can create systems
 that broadcast messages. The goal is to have a lightweight alternative to
@@ -50,6 +48,50 @@ something like Amazon's SQS. This is great if you work with deployments on
 [Fly.io](https://fly.io) or any other container based architecture.
 
 It's currently in-use in production for a multi-machine WebSocket service.
+
+#### Extensions & Devhub
+
+Extensions offer the ability to manipulate the entire Bamboo engine for whatever
+you may need. Something currently in progress is the `devhub` extension, which
+allows developers to run multiple process, debug an application, view request
+lifecycle details, and much more through a built-in dashboard. This feature is
+currently a work in progress.
+
+Here's an example:
+
+```javascript
+devhub(engine, {
+  // Starts prisma studio.
+  prismastudio: ['bunx', 'prisma', 'studio'],
+  // Runs the frontend devserver.
+  frontend: {
+    cmd: ['bunx', '--bun', 'vite'],
+    cwd: join(cwd(), 'frontend'),
+  },
+  // Telegram Server
+  telegram: ['bunx', 'bamboo', 'telegram', '--serve'],
+})
+```
+
+#### WebSocket State
+
+Often times it's useful to maintain some kind of state for a client that is
+connected via WebSocket. Bamboo has a helper that allows you to manage that
+state in several ways:
+
+```javascript
+// Assigns user.id to the WS connection. This is assigned to the active connection and is only reset when the user disconnects.
+endpoint.push('user.id', 1)
+endpoint.pushMany({ 'user.id': 1, token: '1234' })
+endpoint.pushIf(isAdmin, 'user.admin', true)
+endpoint.get('user.id')
+endpoint.remove('user.id')
+
+// Assigns data to the individual WS request/action. This is not reused and is only available within the context of each individual action.
+endpoint.stash('profile.id', 1)
+endpoint.stash('profile.id')
+endpoint.fromStash('profile.id')
+```
 
 ### Example Usage
 
