@@ -6,7 +6,8 @@ export default class TelegramServer {
   socket?: TCPSocketListener<Machine>
 
   constructor({ hostname, port }: { hostname: string; port: number }) {
-    console.log(`🗞️ started telegram listener on ${hostname}:${port}...`)
+    // TODO: Create an optional logging component to be added to this.
+    // console.log(`🗞️ started telegram listener on ${hostname}:${port}...`)
     this.listen(hostname, port)
   }
 
@@ -17,7 +18,8 @@ export default class TelegramServer {
       port,
       socket: {
         open(socket) {
-          console.log('Client 🗞️ connected from', socket.remoteAddress)
+          // TODO: Add optional logging component for this
+          // console.log('Client 🗞️ connected from', socket.remoteAddress)
         },
         close(socket) {
           server.clients.delete(socket)
@@ -39,7 +41,8 @@ export default class TelegramServer {
                 if (payload.connect && payload.machineId) {
                   socket.data = { id: payload.machineId }
                   server.clients.add(socket)
-                  console.log(`clients now: ${server.clients.size} `)
+                  // TODO: Add optional logging client for this.
+                  // console.log(`clients now: ${server.clients.size} `)
                 } else {
                   const message: Message = payload
                   if (message) {

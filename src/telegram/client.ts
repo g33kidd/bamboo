@@ -55,10 +55,11 @@ export default class TelegramClient {
       },
       socket: {
         open(socket) {
-          console.log(
-            '🗞️ connected to telegram server at:',
-            `${hostname}:${port}...`,
-          )
+          // TODO: Add optional logging component for this.
+          // console.log(
+          //   '🗞️ connected to telegram server at:',
+          //   `${hostname}:${port}...`,
+          // )
           client.socket = socket
           socket.write(
             JSON.stringify({
