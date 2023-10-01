@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { TelegramClient, TelegramServer } from '..'
 import { TelegramClientOpts } from '../src/telegram/client'
+import { exit } from 'process'
 
 const connection = { hostname: 'localhost', port: 4560 }
 const server = new TelegramServer({ ...connection })
@@ -12,8 +13,7 @@ const clientDefaults: TelegramClientOpts = {
 
 describe('Telegram', () => {
   afterAll(() => {
-    server.socket?.unref()
-    server.socket?.stop()
+    exit()
   })
 
   test('server handles client disconnect.', async () => {
@@ -75,7 +75,6 @@ describe('Telegram', () => {
     expect(messages).toBeArrayOfSize(25)
     expect(messages[0]).toEqual({ hello: 'world' })
     expect(messages[24]).toEqual({ hello: 'world' })
-
     client.socket?.end()
     otherClient.socket?.end()
   })
