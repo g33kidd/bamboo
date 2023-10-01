@@ -1,0 +1,18 @@
+name: Bamboo Test Suite
+on:
+  push:
+    branches:
+      - master
+      - develop
+jobs:
+  deploy:
+    name: Run Bamboo Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.0.3
+      - run: bun install --ci -f -p --verbose
+      - run: bun test
