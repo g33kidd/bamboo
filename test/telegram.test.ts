@@ -50,6 +50,7 @@ describe('Telegram', () => {
     expect(messages).toBeArrayOfSize(1)
 
     client.socket?.end()
+    otherClient.socket?.end()
   })
 
   test('client receives several messages from another client.', async () => {
