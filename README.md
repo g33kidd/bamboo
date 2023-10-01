@@ -2,8 +2,9 @@
 
 [![Bamboo Test Suite](https://github.com/g33kidd/bamboo/actions/workflows/tests.yml/badge.svg)](https://github.com/g33kidd/bamboo/actions/workflows/tests.yml)
 
-**Bamboo** is a Web Framework for the Bun.sh JavaScript runtime. It is currently
-in rapid development and being used for [Nyra](https://nyra.chat). Currently not
+**Bamboo** is a Web Framework for the
+[Bun.sh JavaScript Runtime](https://bun.sh). It is currently in rapid
+development and being used for [Nyra](https://nyra.chat). Currently not
 recommended to be used in production as it still does not have a stable API
 currently.
 
