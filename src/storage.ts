@@ -45,9 +45,6 @@ export async function ensureStorageDirs(dirs: string[]) {
  * TODO: Saving chunks.
  */
 export async function saveFile(dir: string, name: string, buffer: Buffer) {
-  // NOTE: Might want to do this?
-  // await ensureStorageDirs([dir])
-
   if (buffer.length > 0) {
     const path = join(process.cwd(), 'storage', dir, name)
     const existingFile = Bun.file(path)

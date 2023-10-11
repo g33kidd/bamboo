@@ -1,10 +1,13 @@
-import { join } from "path";
+import { join } from 'path'
 
-export type BambooConfig = {
+export interface BambooConfig {
+  hostname: string
+  port: number
   paths: {
-    [key: string]: string;
-  };
-};
+    root: string
+    [key: string]: string
+  }
+}
 
 // const file = Bun.file(join(process.cwd(), 'config.ts'))
 // const config = JSON.parse();

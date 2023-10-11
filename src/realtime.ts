@@ -80,7 +80,7 @@ export default class RealtimeEngine {
    * Handles a client joining a room.
    */
   async handleRoomJoin(endpoint: WebSocketEndpoint) {
-    const roomName = endpoint.param('room')
+    const roomName = endpoint.param<string>('room')
     if (!roomName) return endpoint
 
     endpoint.ws.subscribe(roomName)
@@ -92,7 +92,7 @@ export default class RealtimeEngine {
    * Handles a client leaving the room.
    */
   async handleRoomLeave(endpoint: WebSocketEndpoint) {
-    const roomName = endpoint.param('room')
+    const roomName = endpoint.param<string>('room')
     if (!roomName) return endpoint
 
     if (endpoint.ws.isSubscribed(roomName)) {

@@ -6,15 +6,14 @@ import Action from './actions/action'
 import ActionGroup from './actions/group'
 import ActionRegistry, { ActionWithParams } from './actions/registry'
 import WebSocketAction from './actions/websocketAction'
-import WebSocketActionRegistry from './actions/websocketRegistry'
+import { BambooConfig } from './config'
 import Endpoint from './endpoint'
 import { parseActionURL } from './helpers/action'
 import Pipe from './pipe'
+import RealtimeEngine from './realtime'
 import Service from './service'
 import WebSocketEndpoint, { WebSocketEndpointData } from './websocketEndpoint'
 import WebSocketPipe from './websocketPipe'
-import RoomService from './rooms'
-import RealtimeEngine from './realtime'
 
 export type EngineWebSocketConfig = {
   pipes: Array<WebSocketPipe>
@@ -71,6 +70,39 @@ export class Engine {
 
   edge: Edge
 
+  constructor(appConfig: ApplicationConfig, config: EngineConfig) {
+    this.rateLimiters = new Map()
+    this.config = appConfig
+
+    this.config.pathMap = new Map()
+
+    // Setup EventEmitter for sending publish requests to the server.
+
+    this.edge = new Edge({ cache: true })
+
+    // TODO: Finish worker setup
+    // const worker = new Worker(
+    //   new URL("./workers/taskWorker.ts", import.meta.url).href
+    // );
+
+    // worker.addEventListener("open", () => {
+    //   console.log("worker is ready");
+    // });
+
+    // this.workers.set("tasks", worker);
+  }
+
+  mapPath(from: string, to: string) {
+    if (this.config.pathMap) {
+      this.config.pathMap.set(from, to)
+    }
+
+    return this
+  }
+
+  /**
+   * Configures the engine based on the EngineConfig passed in.
+   */
   configure(config: EngineConfig) {
     if (!this.config.pathMap) {
       this.config.pathMap = new Map<string, string>()
@@ -137,36 +169,25 @@ export class Engine {
     return this
   }
 
-  constructor(appConfig: ApplicationConfig, config: EngineConfig) {
-    this.rateLimiters = new Map()
-    this.config = appConfig
+  /**
+   * Startup
+   */
+  configureWithDefaults(config: BambooConfig) {
+    /// 1. Get the path of the configuration file.
+    //    OR pass in the configuration file.
+    /// 2. Do .configure with that information.
+    /// 3.
 
-    this.config.pathMap = new Map()
-
-    // Setup EventEmitter for sending publish requests to the server.
-
-    this.edge = new Edge({ cache: true })
-
-    // TODO: Finish worker setup
-    // const worker = new Worker(
-    //   new URL("./workers/taskWorker.ts", import.meta.url).href
-    // );
-
-    // worker.addEventListener("open", () => {
-    //   console.log("worker is ready");
-    // });
-
-    // this.workers.set("tasks", worker);
-  }
-
-  mapPath(from: string, to: string) {
-    if (this.config.pathMap) {
-      this.config.pathMap.set(from, to)
-    }
+    // const configLocation = configPath ? configPath : join(cwd())
+    // const configFile = Bun.file(join(configLocation, 'config.'))
+    // const config = JSON.parse()
 
     return this
   }
 
+  /**
+   * Returns an instance of a service.
+   */
   service<T>(name: string): T {
     if (!this.services.has(name)) {
       throw new Error(`Service "${name}" is not a valid service.`)
@@ -374,6 +395,8 @@ export class Engine {
    *
    * TODO: Finish this, include the timestamp of the first request & most recent request to determine
    * if the limit should be reset, keep counting, or deny requests.
+   *
+   * TODO: Move this.
    */
   ratelimit(
     context: string,
@@ -391,7 +414,7 @@ export class Engine {
       })
     }
 
-    let now = Date.now()
+    // let now = Date.now()
     let currentAmount = 0
 
     if (!this.rateCache) {

@@ -1,34 +1,33 @@
-import { hrtime } from "process";
-import Engine from "./engine";
-import * as ncrypto from "node:crypto";
-import { engine } from "..";
+import * as ncrypto from 'node:crypto'
+import { hrtime } from 'process'
+import { engine } from '..'
 
 export default class Endpoint {
-  request: Request;
-  response?: Response;
-  parts: string[];
-  stashMap: Map<string, any>;
-  params: Map<string, any> = new Map();
-  url: URL;
+  request: Request
+  response?: Response
+  parts: string[]
+  stashMap: Map<string, any>
+  params: Map<string, any> = new Map()
+  url: URL
 
-  locked: boolean = false;
+  locked: boolean = false
 
-  timeStart: bigint;
-  timeEnd?: bigint;
+  timeStart: bigint
+  timeEnd?: bigint
 
   constructor(_request: Request) {
-    if (!_request || typeof _request === "undefined") {
-      throw new Error("Cannot create an Endpoint with an empty request.");
+    if (!_request || typeof _request === 'undefined') {
+      throw new Error('Cannot create an Endpoint with an empty request.')
     }
 
-    this.timeStart = hrtime.bigint();
-    this.url = new URL(_request.url);
-    this.stashMap = new Map();
-    this.request = _request;
+    this.timeStart = hrtime.bigint()
+    this.url = new URL(_request.url)
+    this.stashMap = new Map()
+    this.request = _request
 
-    const parts = this.url.pathname.split("/");
-    parts.shift();
-    this.parts = parts;
+    const parts = this.url.pathname.split('/')
+    parts.shift()
+    this.parts = parts
   }
 
   /**
@@ -36,9 +35,9 @@ export default class Endpoint {
    */
   time() {
     if (this.timeEnd) {
-      return Number(this.timeEnd - this.timeStart) / 1000;
+      return Number(this.timeEnd - this.timeStart) / 1000
     } else {
-      return 0;
+      return 0
     }
   }
 
@@ -49,14 +48,14 @@ export default class Endpoint {
    * This will have to be implemented after Bun 1.0 is released. I assume that the crypto library will be more
    * fully developed by then.
    */
-  createSecureToken(encoding: BufferEncoding = "base64") {
+  createSecureToken(encoding: BufferEncoding = 'base64') {
     // const secret = "123412341234";
-    const buffer = Buffer.from(ncrypto.randomBytes(64));
-    buffer.write(Date.now().toString(), 8);
+    const buffer = Buffer.from(ncrypto.randomBytes(64))
+    buffer.write(Date.now().toString(), 8)
     // crypto.subtle.sign("sha256", buffer, secret);
     // const signed = crypto.sign("sha256", buffer, secret);
     // const verify = crypto.verify("sha256", )
-    return buffer.toString(encoding);
+    return buffer.toString(encoding)
   }
 
   /**
@@ -65,7 +64,7 @@ export default class Endpoint {
    * @returns T
    */
   service<T>(name: string): T {
-    return engine.service<T>(name);
+    return engine.service<T>(name)
   }
 
   /**
@@ -73,13 +72,13 @@ export default class Endpoint {
    * Currently only used to display the method, path, status and amount of time it took to process the request.
    */
   async debug() {
-    const time = this.time();
+    const time = this.time()
     const timeDisplay =
-      time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`;
+      time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`
 
     console.log(
-      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`
-    );
+      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`,
+    )
   }
 
   /**
@@ -92,10 +91,10 @@ export default class Endpoint {
    */
   header(name: string, defaultValue?: any): string {
     if (this.request.headers.get(name) !== null) {
-      return this.request.headers.get(name) as string;
+      return this.request.headers.get(name) as string
     }
 
-    return defaultValue || null;
+    return defaultValue || null
   }
 
   /**
@@ -103,11 +102,11 @@ export default class Endpoint {
    */
   stash(key: string, value?: any) {
     if (!this.stashMap.has(key)) {
-      this.stashMap.set(key, value);
+      this.stashMap.set(key, value)
     } else {
       // If there is no value, assume that we're trying to fetch the value.
       if (!value) {
-        return this.stashMap.get(key);
+        return this.stashMap.get(key)
       }
     }
   }
@@ -121,10 +120,10 @@ export default class Endpoint {
    */
   fromStash(key: string, defaultValue?: any) {
     if (this.stashMap.has(key)) {
-      return this.stashMap.get(key);
+      return this.stashMap.get(key)
     }
 
-    return defaultValue || null;
+    return defaultValue || null
   }
 
   /**
@@ -132,17 +131,17 @@ export default class Endpoint {
    * Or returns the default value if specified, or returns null.
    */
   param(key: string, defaultValue?: any) {
-    const param = this.params.get(key);
-    const searchParam = this.url.searchParams.get(key);
+    const param = this.params.get(key)
+    const searchParam = this.url.searchParams.get(key)
 
     if (!param) {
       if (searchParam) {
-        return searchParam;
+        return searchParam
       } else {
-        return defaultValue || null;
+        return defaultValue || null
       }
     } else {
-      return param;
+      return param
     }
   }
 
@@ -156,20 +155,20 @@ export default class Endpoint {
   async view(path: string, params?: object) {
     if (!this.locked) {
       const html = await engine.edge.render(path, {
-        isDev: process.env.NODE_ENV === "development",
+        isDev: process.env.NODE_ENV === 'development',
         ...params,
-      });
+      })
 
       this.response = new Response(html, {
         headers: {
-          "Content-Type": "text/html",
-          "Content-Length": html.length.toString(),
+          'Content-Type': 'text/html',
+          'Content-Length': html.length.toString(),
         },
-      });
-      this.locked = true;
+      })
+      this.locked = true
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -179,19 +178,19 @@ export default class Endpoint {
    */
   async file(path: string) {
     if (!this.locked) {
-      const file = Bun.file(path);
-      const exists = await file.exists();
+      const file = Bun.file(path)
+      const exists = await file.exists()
 
       // Don't lock the file. We might want to perform other actions on this Endpoint.
       if (!exists) {
-        return this.status(404);
+        return this.status(404)
       }
 
-      this.response = new Response(file);
-      this.locked = true;
+      this.response = new Response(file)
+      this.locked = true
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -202,35 +201,35 @@ export default class Endpoint {
    * @param statusText
    * @returns Endpoint
    */
-  json(data: any, status: number = 200, statusText: string = "OK") {
+  json(data: any, status: number = 200, statusText: string = 'OK') {
     if (!this.locked) {
-      const json = JSON.stringify(data);
+      const json = JSON.stringify(data)
 
-      this.locked = true;
+      this.locked = true
       this.response = new Response(json, {
         status: status,
         statusText: statusText,
         headers: {
-          "Content-Type": "application/json",
-          "Content-Length": json.length.toString(),
+          'Content-Type': 'application/json',
+          'Content-Length': json.length.toString(),
         },
-      });
+      })
     }
 
-    return this;
+    return this
   }
 
   // Returns a status code with an optional statusText parameter.
   status(code: number, text?: string) {
     if (!this.locked) {
-      this.locked = true;
+      this.locked = true
       this.response = new Response(null, {
         status: code,
         statusText: text,
-      });
+      })
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -239,10 +238,10 @@ export default class Endpoint {
    */
   notImplemented() {
     if (!this.locked) {
-      this.locked = true;
-      this.response = new Response("Not Implemented");
+      this.locked = true
+      this.response = new Response('Not Implemented')
     }
 
-    return this;
+    return this
   }
 }
