@@ -1,9 +1,9 @@
-import Pipe from "../pipe";
+import Pipe from '../pipe'
 
 export default new Pipe(
-  "ratelimit",
+  'ratelimit',
   async (endpoint) => {
-    return endpoint;
+    return endpoint
   },
-  []
-);
+  [],
+)

@@ -1,5 +1,5 @@
-import { WebSocketAction, WebSocketEndpoint, WebSocketPipe } from '..'
-import WebSocketActionRegistry from './actions/websocketRegistry'
+import { WebSocketAction, WebSocketEndpoint, WebSocketPipe } from '../..'
+import WebSocketActionRegistry from '../actions/websocketRegistry'
 
 type RoomHandler = (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>
 

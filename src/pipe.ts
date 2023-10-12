@@ -1,4 +1,4 @@
-import Endpoint from './endpoint'
+import Endpoint from './endpoint/Endpoint'
 
 export type PipeHandler = (endpoint: Endpoint) => Promise<Endpoint>
 

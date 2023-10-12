@@ -7,14 +7,15 @@
  * NOTE: Start with in-memory cache first, add adapters later.
  */
 
-import { join } from "path";
+import { join } from 'path'
 
 type CacheFile = {
-  [key: string]: {};
-};
+  [key: string]: {}
+}
 
+// TODO: This
 export default class RateLimitCache {
-  storage: Map<string, any>;
+  storage: Map<string, any>
 
   constructor() {}
 
@@ -24,14 +25,14 @@ export default class RateLimitCache {
    */
   async loadFromCacheFile() {
     // TODO: Add this path resolution somewhere else.
-    const cachePath = join(process.cwd(), ".bamboo");
-    const cacheFile = Bun.file(join(cachePath, "ratelimit.cache"));
-    const exists = await cacheFile.exists();
+    const cachePath = join(process.cwd(), '.bamboo')
+    const cacheFile = Bun.file(join(cachePath, 'ratelimit.cache'))
+    const exists = await cacheFile.exists()
 
     if (exists) {
-      const contents = await cacheFile.json();
+      const contents = await cacheFile.json()
       // Merge the two Maps, to ensure no dataloss occurs.
-      this.storage = new Map();
+      this.storage = new Map()
     } else {
       // do nothing
     }

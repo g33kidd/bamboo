@@ -1,4 +1,4 @@
-import Endpoint from '../endpoint'
+import Endpoint from '../endpoint/Endpoint'
 import Pipe, { pipe } from '../pipe'
 import path, { join } from 'path'
 import engine from '../engine'

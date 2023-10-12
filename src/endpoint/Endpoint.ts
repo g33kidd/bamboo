@@ -45,6 +45,8 @@ export default class Endpoint extends BaseEndpoint {
    * TODO: Sign the token with a server-side secret so we can ensure that it's valid later on.
    * This will have to be implemented after Bun 1.0 is released. I assume that the crypto library will be more
    * fully developed by then.
+   *
+   * NOTE: This can be replaced by Bamboo.createSecureToken
    */
   createSecureToken(encoding: BufferEncoding = 'base64') {
     // const secret = "123412341234";
@@ -55,15 +57,6 @@ export default class Endpoint extends BaseEndpoint {
     // const verify = crypto.verify("sha256", )
     return buffer.toString(encoding)
   }
-
-  /**
-   * Helper for accessing a service from the engine.
-   * @param name Name of the service.
-   * @returns T
-   */
-  // service<T>(name: string): T {
-  //   return engine.service<T>(name)
-  // }
 
   /**
    * Logs general debug information to the console.
@@ -103,21 +96,6 @@ export default class Endpoint extends BaseEndpoint {
   //       return this.stashMap.get(key)
   //     }
   //   }
-  // }
-
-  /**
-   * Retrieves a value from the stash.
-   *
-   * @param key
-   * @param defaultValue
-   * @returns stash[key] value or defaultValue or null.
-   */
-  // fromStash(key: string, defaultValue?: any) {
-  //   if (this.stashMap.has(key)) {
-  //     return this.stashMap.get(key)
-  //   }
-
-  //   return defaultValue || null
   // }
 
   /**

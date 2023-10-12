@@ -1,6 +1,6 @@
-import { Server, ServerWebSocket, Subprocess } from "bun";
-import { join } from "path";
-import { Engine } from "..";
+import { Server, ServerWebSocket, Subprocess } from 'bun'
+import { join } from 'path'
+import { Engine } from '..'
 
 // TODO: Finish the devserver implementation.
 
@@ -32,51 +32,51 @@ import { Engine } from "..";
  * engine.serve();
  */
 
-const store = new Map<string, Subprocess>();
-const streams = new Map<string, ReadableStream>();
+const store = new Map<string, Subprocess>()
+const streams = new Map<string, ReadableStream>()
 const applications: [name: string, script: string][] = [
-  ["app", "src/index.ts"],
-  ["watcher", "src/watcher.ts"],
-];
+  ['app', 'src/index.ts'],
+  ['watcher', 'src/watcher.ts'],
+]
 
-let server: Server | null = null;
+let server: Server | null = null
 if (!server)
   server = Bun.serve({
     port: 1337,
     fetch: function (
       this: Server,
       request: Request,
-      server: Server
+      server: Server,
     ): Response | Promise<Response> {
-      throw new Error("Function not implemented.");
+      throw new Error('Function not implemented.')
     },
     websocket: {
       open(ws) {
-        ws.subscribe("_main");
+        ws.subscribe('_main')
       },
       message(
         ws: ServerWebSocket<unknown>,
-        message: string | Buffer
+        message: string | Buffer,
       ): void | Promise<void> {
-        throw new Error("Function not implemented.");
+        throw new Error('Function not implemented.')
       },
     },
-  });
+  })
 
 for (const [name, script] of applications) {
-  const scriptPath = join(process.cwd(), script);
-  const scriptFile = Bun.file(scriptPath);
-  const hasScript = await scriptFile.exists();
+  const scriptPath = join(process.cwd(), script)
+  const scriptFile = Bun.file(scriptPath)
+  const hasScript = await scriptFile.exists()
 
   if (!hasScript) {
-    console.error(`Could not find '${name}' at ${scriptPath}`);
+    console.error(`Could not find '${name}' at ${scriptPath}`)
   } else {
     const proc = Bun.spawn({
-      cmd: ["bun", "run", scriptPath],
-    });
+      cmd: ['bun', 'run', scriptPath],
+    })
 
-    streams.set(name, proc.stdout);
-    store.set(name, proc);
+    streams.set(name, proc.stdout)
+    store.set(name, proc)
   }
 }
 
@@ -84,7 +84,7 @@ for (const [name, script] of applications) {
 await Promise.all(
   Array.from(streams).map(async ([name, stream], index) => {
     for await (const chunk of stream) {
-      await Bun.write(Bun.stdout, `[${name}] ${Buffer.from(chunk)}\n`);
+      await Bun.write(Bun.stdout, `[${name}] ${Buffer.from(chunk)}\n`)
       // TODO: Run this to a ws server for the dashboard.
       // server?.publish(
       //   "_main",
@@ -94,5 +94,5 @@ await Promise.all(
       //   })
       // );
     }
-  })
-);
+  }),
+)

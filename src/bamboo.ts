@@ -1,14 +1,17 @@
 import { join } from 'path'
+import * as ncrypto from 'node:crypto'
 
 export default class Bamboo {
   static sign(ctx: string, data: string, lifetime?: number) {}
 
   static verify(ctx: string, data: string, lifetime?: number) {}
 
-  // NOTE: I don't remember what this was for? Must not be that important
-  // static async file() {
-  //   const defaults = {
-  //     pids: [],
-  //   }
-  // }
+  /**
+   * Generates a random value with base64 encoding.
+   */
+  static createSecureToken(encoding: BufferEncoding = 'base64') {
+    const buffer = Buffer.from(ncrypto.randomBytes(64))
+    buffer.write(Date.now().toString(), 8)
+    return buffer.toString(encoding)
+  }
 }
