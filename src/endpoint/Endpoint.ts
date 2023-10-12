@@ -6,7 +6,7 @@ export default class Endpoint extends BaseEndpoint {
   request: Request
   response?: Response
   parts: string[]
-  params: Map<string, any> = new Map()
+  // params: Map<string, any> = new Map()
   url: URL
 
   locked: boolean = false
@@ -23,6 +23,9 @@ export default class Endpoint extends BaseEndpoint {
 
     const parts = this.url.pathname.split('/')
     this.parts = parts.filter((p) => p !== '')
+
+    // TODO: Parameters
+    // console.log(...this.url.searchParams)
   }
 
   /**
@@ -91,16 +94,16 @@ export default class Endpoint extends BaseEndpoint {
   /**
    * Stores a value in the Endpoint stash for use later on in the request lifecycle.
    */
-  stash(key: string, value?: any) {
-    if (!this.stashMap.has(key)) {
-      this.stashMap.set(key, value)
-    } else {
-      // If there is no value, assume that we're trying to fetch the value.
-      if (!value) {
-        return this.stashMap.get(key)
-      }
-    }
-  }
+  // stash(key: string, value?: any) {
+  //   if (!this.stashMap.has(key)) {
+  //     this.stashMap.set(key, value)
+  //   } else {
+  //     // If there is no value, assume that we're trying to fetch the value.
+  //     if (!value) {
+  //       return this.stashMap.get(key)
+  //     }
+  //   }
+  // }
 
   /**
    * Retrieves a value from the stash.
@@ -109,13 +112,13 @@ export default class Endpoint extends BaseEndpoint {
    * @param defaultValue
    * @returns stash[key] value or defaultValue or null.
    */
-  fromStash(key: string, defaultValue?: any) {
-    if (this.stashMap.has(key)) {
-      return this.stashMap.get(key)
-    }
+  // fromStash(key: string, defaultValue?: any) {
+  //   if (this.stashMap.has(key)) {
+  //     return this.stashMap.get(key)
+  //   }
 
-    return defaultValue || null
-  }
+  //   return defaultValue || null
+  // }
 
   /**
    * Returns either a parameter from a JSON body or a search param.

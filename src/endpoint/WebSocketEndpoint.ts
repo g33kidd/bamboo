@@ -160,6 +160,8 @@ export default class WebSocketEndpoint extends BaseEndpoint {
           event: json.event,
           parameters: json.data,
         }
+
+        this.useParams(json.data)
       } catch (e) {
         // This request is not a JSON message.
         this.parsedMessage = {

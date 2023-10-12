@@ -1,14 +1,21 @@
 import { hrtime } from 'node:process'
 import { engine } from '../..'
 
+type EndpointParams = { [key: string]: any }
+
 export default class BaseEndpoint {
   stashMap: Map<string, any> = new Map()
+  params: EndpointParams = {}
 
   timeStart: bigint
   timeEnd?: bigint
 
   constructor() {
     this.timeStart = hrtime.bigint()
+  }
+
+  useParams(parameters: EndpointParams) {
+    this.params = parameters
   }
 
   /**

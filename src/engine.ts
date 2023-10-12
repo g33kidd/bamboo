@@ -75,23 +75,8 @@ export class Engine {
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.rateLimiters = new Map()
     this.config = appConfig
-
     this.config.pathMap = new Map()
-
-    // Setup EventEmitter for sending publish requests to the server.
-
     this.edge = new Edge({ cache: true })
-
-    // TODO: Finish worker setup
-    // const worker = new Worker(
-    //   new URL("./workers/taskWorker.ts", import.meta.url).href
-    // );
-
-    // worker.addEventListener("open", () => {
-    //   console.log("worker is ready");
-    // });
-
-    // this.workers.set("tasks", worker);
   }
 
   mapPath(from: string, to: string) {
@@ -167,6 +152,9 @@ export class Engine {
         this.registry.action(actionOrGroup)
       }
     }
+
+    // TODO: Create a debug method in registry to display ALL available paths.
+    console.log(this.registry)
 
     return this
   }
@@ -377,6 +365,7 @@ export class Engine {
   // Handles an action for an incoming request.
   async handleAction(endpoint: Endpoint) {
     const parsedPath = parseActionURL(endpoint)
+    console.log(parsedPath)
     const { action, params }: ActionWithParams = this.registry.parse(
       endpoint.request.method,
       parsedPath,
