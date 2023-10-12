@@ -91,7 +91,7 @@ export default class ActionRegistry {
                 typeof key === 'string' &&
                 key.startsWith('**') &&
                 key.includes('.') &&
-                key.endsWith(
+                key.includes(
                   pathPart.split('.')[pathPart.split('.').length - 1],
                 ),
             ) as string
