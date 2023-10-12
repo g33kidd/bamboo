@@ -1,4 +1,4 @@
-import WebSocketEndpoint from './websocketEndpoint'
+import WebSocketEndpoint from './endpoint/WebSocketEndpoint'
 
 export type PipeOptions = {}
 

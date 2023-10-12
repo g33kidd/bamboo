@@ -1,45 +1,40 @@
 import * as ncrypto from 'node:crypto'
-import { hrtime } from 'process'
-import { engine } from '..'
+import { engine } from '../..'
+import BaseEndpoint from './BaseEndpoint'
 
-export default class Endpoint {
+export default class Endpoint extends BaseEndpoint {
   request: Request
   response?: Response
   parts: string[]
-  stashMap: Map<string, any>
   params: Map<string, any> = new Map()
   url: URL
 
   locked: boolean = false
 
-  timeStart: bigint
-  timeEnd?: bigint
-
   constructor(_request: Request) {
+    super()
+
     if (!_request || typeof _request === 'undefined') {
       throw new Error('Cannot create an Endpoint with an empty request.')
     }
 
-    this.timeStart = hrtime.bigint()
     this.url = new URL(_request.url)
-    this.stashMap = new Map()
     this.request = _request
 
     const parts = this.url.pathname.split('/')
-    parts.shift()
-    this.parts = parts
+    this.parts = parts.filter((p) => p !== '')
   }
 
   /**
    * Returns the time it took between the start and end of the request.
    */
-  time() {
-    if (this.timeEnd) {
-      return Number(this.timeEnd - this.timeStart) / 1000
-    } else {
-      return 0
-    }
-  }
+  // time() {
+  //   if (this.timeEnd) {
+  //     return Number(this.timeEnd - this.timeStart) / 1000
+  //   } else {
+  //     return 0
+  //   }
+  // }
 
   /**
    * Creates a secure random token that includes a UTC timestamp. Used for CSRF, etc..
@@ -63,21 +58,17 @@ export default class Endpoint {
    * @param name Name of the service.
    * @returns T
    */
-  service<T>(name: string): T {
-    return engine.service<T>(name)
-  }
+  // service<T>(name: string): T {
+  //   return engine.service<T>(name)
+  // }
 
   /**
    * Logs general debug information to the console.
    * Currently only used to display the method, path, status and amount of time it took to process the request.
    */
-  async debug() {
-    const time = this.time()
-    const timeDisplay =
-      time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`
-
-    console.log(
-      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status} in ${timeDisplay}`,
+  override debug() {
+    super.debug(
+      `[${this.request.method}] ${this.url.pathname} -> ${this.response?.status}`,
     )
   }
 

@@ -7,12 +7,14 @@ import ActionGroup from './actions/group'
 import ActionRegistry, { ActionWithParams } from './actions/registry'
 import WebSocketAction from './actions/websocketAction'
 import { BambooConfig } from './config'
-import Endpoint from './endpoint'
+import Endpoint from './endpoint/Endpoint'
 import { parseActionURL } from './helpers/action'
 import Pipe from './pipe'
 import RealtimeEngine from './realtime'
 import Service from './service'
-import WebSocketEndpoint, { WebSocketEndpointData } from './websocketEndpoint'
+import WebSocketEndpoint, {
+  WebSocketEndpointData,
+} from './endpoint/WebSocketEndpoint'
 import WebSocketPipe from './websocketPipe'
 
 export type EngineWebSocketConfig = {
