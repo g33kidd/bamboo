@@ -1,7 +1,7 @@
 import { Server, ServerWebSocket } from 'bun'
 import { Edge } from 'edge.js'
 import { join } from 'path'
-import { hrtime } from 'process'
+import { cwd, hrtime } from 'process'
 import Action from '../actions/action'
 import ActionGroup from '../actions/group'
 import ActionRegistry, { ActionWithParams } from '../actions/registry'
@@ -154,7 +154,7 @@ export class Engine {
     }
 
     // TODO: Create a debug method in registry to display ALL available paths.
-    console.log(this.registry)
+    // console.log(this.registry)
 
     return this
   }
@@ -365,7 +365,7 @@ export class Engine {
   // Handles an action for an incoming request.
   async handleAction(endpoint: Endpoint) {
     const parsedPath = parseActionURL(endpoint)
-    console.log(parsedPath)
+    // console.log(parsedPath)
     const { action, params }: ActionWithParams = this.registry.parse(
       endpoint.request.method,
       parsedPath,
@@ -454,7 +454,7 @@ export class Engine {
   }
 }
 
-// TODO: Load this information from a configuration file.
+// TODO: Load this from a configuration file.
 const defaultEngine = new Engine(
   {
     paths: {
@@ -464,6 +464,7 @@ const defaultEngine = new Engine(
       views: join(process.cwd(), 'src', 'views'),
     },
   },
+  // TODO: Dynamically import everything required below:
   {},
 )
 
