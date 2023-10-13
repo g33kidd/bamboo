@@ -1,5 +1,6 @@
 import Endpoint from '../endpoint/Endpoint'
-import Pipe, { pipe } from '../pipe'
+import Pipe from '../core/pipe'
+import { pipe } from '../helpers'
 import path, { join } from 'path'
 import engine from '../engine'
 

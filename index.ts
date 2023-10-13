@@ -1,16 +1,19 @@
 import Endpoint from './src/endpoint/Endpoint'
 import engine, { Engine } from './src/engine'
-import Pipe, { pipe } from './src/pipe'
+import Pipe from './src/core/pipe'
 import Action, { action } from './src/actions/action'
 import ActionGroup, { group } from './src/actions/group'
-import Service, { service } from './src/service'
+import Service, { service } from './src/core/service'
 import WebSocketEndpoint from './src/endpoint/WebSocketEndpoint'
 import WebSocketAction, { ws } from './src/actions/websocketAction'
-import WebSocketPipe, { wsPipe } from './src/websocketPipe'
+import WebSocketPipe from './src/websocketPipe'
 import TelegramClient from './src/telegram/client'
 import TelegramServer from './src/telegram/server'
 
 import { ensureStorageDirs, saveFile } from './src/storage'
+
+// Helpers
+import { pipe, wsPipe } from './src/helpers'
 
 // Internal Pipes
 import staticPipe from './src/pipes/static'

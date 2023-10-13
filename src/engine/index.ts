@@ -9,22 +9,22 @@ import WebSocketAction from '../actions/websocketAction'
 import { BambooConfig } from '../config'
 import Endpoint from '../endpoint/Endpoint'
 import { parseActionURL } from '../helpers/action'
-import Pipe from '../pipe'
+import Pipe from '../core/pipe'
 import RealtimeEngine from './realtime'
-import Service from '../service'
+import Service from '../core/service'
 import WebSocketEndpoint, {
   WebSocketEndpointData,
 } from '../endpoint/WebSocketEndpoint'
-import WebSocketPipe from '../websocketPipe'
+import Logger, { createLogAdapter } from '../core/logging'
 
 export type EngineWebSocketConfig = {
-  pipes: Array<WebSocketPipe>
+  pipes: Array<Pipe<WebSocketEndpoint>>
   actions: Array<WebSocketAction>
   open?: (ws: ServerWebSocket<WebSocketEndpointData>) => Promise<void> | void
 }
 
 export type EngineConfig = {
-  pipes?: Array<Pipe>
+  pipes?: Array<Pipe<Endpoint>>
   actions?: Array<Action | ActionGroup>
   services?: Array<Service<any>>
   websocket?: EngineWebSocketConfig
@@ -51,14 +51,15 @@ export type EngineLimiter = {
 
 export class Engine {
   server?: Server
-  pipes: Array<Pipe> = []
+  pipes: Array<Pipe<Endpoint>> = []
   config: ApplicationConfig
   actions: Array<Action | ActionGroup> = []
   registry: ActionRegistry = new ActionRegistry()
   services: Map<string, Service<any>> = new Map()
   workers: Map<string, Worker> = new Map()
-  // rooms: RoomService = new RoomService();
+  logging: Logger = new Logger()
 
+  // rooms: RoomService = new RoomService();
   // rooms: Map<string, Room> = new Map();
 
   // Rate Limiting
@@ -77,8 +78,18 @@ export class Engine {
     this.config = appConfig
     this.config.pathMap = new Map()
     this.edge = new Edge({ cache: true })
+
+    // Register the development console.log logger in development mode.
+    if (process.env.NODE_ENV === 'development') {
+      this.logging.register(createLogAdapter('dev-console', console.log))
+    }
   }
 
+  /**
+   * Path mapping for static assets.
+   *
+   * TODO: NOTE: This should be moved out of here...
+   */
   mapPath(from: string, to: string) {
     if (this.config.pathMap) {
       this.config.pathMap.set(from, to)
@@ -153,9 +164,6 @@ export class Engine {
       }
     }
 
-    // TODO: Create a debug method in registry to display ALL available paths.
-    // console.log(this.registry)
-
     return this
   }
 
@@ -191,21 +199,9 @@ export class Engine {
   //   return this;
   // }
 
-  // Creates an offloaded task that can be completed in the background.
-  offload(name: string, task: any): void {
-    // const worker = this.workers.get(name);
-    // if (worker) {
-    //   worker.postMessage({
-    //     message: "offload_task",
-    //     task,
-    //   });
-    // }
-    // create a new worker if one doesn't exist.
-    // determine the status of an existing worker if one does.
-    // send a message that describes a function to it.
-  }
-
-  // Starts the application server.
+  /**
+   * Starts the application server.
+   */
   serve() {
     const engine = this
 
@@ -252,9 +248,8 @@ export class Engine {
               engine.realtime.clients.set(token, {})
             }
 
+            // TOOD: This shouldn't be required automatically, make it an extension?
             ws.subscribe(`client:${token}`)
-
-            // TOOD: We should probably setup a token here that can be used alongside restamping.
             ws.send(
               JSON.stringify({
                 event: 'connected',
@@ -308,7 +303,9 @@ export class Engine {
     return this
   }
 
-  // Handles a websocket pipe for an incoming request.
+  /**
+   * Handles websocket pipes for an incoming request.
+   */
   async handleWebSocketPipes(endpoint: WebSocketEndpoint) {
     if (this.websocket?.pipes) {
       for (let i = 0; i < this.websocket?.pipes.length; i++) {
@@ -443,7 +440,6 @@ export class Engine {
     })
   }
 
-  // Handles global applic ation pipes.
   async handlePipes(endpoint: Endpoint) {
     for (let index = 0; index < this.pipes.length; index++) {
       const pipe = this.pipes[index]

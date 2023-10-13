@@ -1,10 +1,29 @@
-import { Endpoint, WebSocketEndpoint } from '..'
+import { Endpoint, Pipe, WebSocketEndpoint } from '..'
+import { PipeHandler } from './core/pipe'
 
-// type ModifyProps = {};
+/**
+ * Helper function for creating a new Endpoint Pipe. Passing an array of the same type
+ * of pipe will add additional pipes that will run before this one.
+ */
+export function pipe(
+  name: string,
+  handler: PipeHandler<Endpoint>,
+  pipes?: Pipe<Endpoint>[],
+) {
+  return new Pipe(name, handler, pipes)
+}
 
-// export async function modify(endpoint: Endpoint, props: ModifyProps) {
-
-// }
+/**
+ * Helper function for creating a new WebSocketEndpoint pipe. Passing an array of the same
+ * type of pipe will add additional pipes that will run before this one.
+ */
+export function wsPipe(
+  name: string,
+  handler: PipeHandler<WebSocketEndpoint>,
+  pipes?: Pipe<WebSocketEndpoint>[],
+) {
+  return new Pipe(name, handler, pipes)
+}
 
 /**
  * Setup an endpoint with a JSON Response.

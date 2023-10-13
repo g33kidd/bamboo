@@ -4,13 +4,16 @@ import { engine } from '../..'
 type EndpointParams = { [key: string]: any }
 
 export default class BaseEndpoint {
+  realtime: Boolean
+
   stashMap: Map<string, any> = new Map()
   params: EndpointParams = {}
 
   timeStart: bigint
   timeEnd?: bigint
 
-  constructor() {
+  constructor(_realtime: Boolean = false) {
+    this.realtime = _realtime
     this.timeStart = hrtime.bigint()
   }
 
@@ -54,14 +57,18 @@ export default class BaseEndpoint {
     return engine.service<T>(name)
   }
 
+  /**
+   * Gets the time difference between timeStart and timeEnd.
+   */
   time(): number {
-    if (this.timeEnd) {
-      return Number(this.timeEnd - this.timeStart) / 1000
-    } else {
-      return 0
-    }
+    return this.timeEnd ? Number(this.timeEnd - this.timeStart) / 1000 : 0
   }
 
+  /**
+   * Debug w/ the amount of time it took to complete the request.
+   *
+   * TODO: Engine logging
+   */
   debug(...data: any[]) {
     const time = this.time()
     const timeDisplay =

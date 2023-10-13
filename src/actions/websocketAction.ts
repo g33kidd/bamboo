@@ -1,15 +1,17 @@
+import Pipe from '../core/pipe'
 import WebSocketEndpoint from '../endpoint/WebSocketEndpoint'
-import WebSocketPipe from '../websocketPipe'
+
+// RealtimeAction / RealtimeRegistry
 
 export default class WebSocketAction {
   definition: string
   handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>
-  pipes?: WebSocketPipe[]
+  pipes?: Pipe<WebSocketEndpoint>[]
 
   constructor(
     _definition: string,
     _handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
-    _pipes?: WebSocketPipe[],
+    _pipes?: Pipe<WebSocketEndpoint>[],
   ) {
     this.definition = _definition
     this.handler = _handler
@@ -25,11 +27,12 @@ export default class WebSocketAction {
   async handlePipes(endpoint: WebSocketEndpoint) {
     if (this.pipes && this.pipes?.length > 0) {
       const pipeLogNames = this.pipes.map((p) => p.name).join(' -> ')
+
+      // TODO: Logging: Replace this with logging.
       if (process.env.NODE_ENV === 'development') {
         console.log(`[${this.definition} pipe flow]:\n\n\t${pipeLogNames}\n`)
       }
-      for (let i = 0; i < this.pipes.length; i++) {
-        const pipe = this.pipes[i]
+      for await (let pipe of this.pipes) {
         endpoint = await pipe.handle(endpoint)
       }
     }
@@ -40,9 +43,9 @@ export default class WebSocketAction {
 
 // Helper function for declaring websocket actions.
 export function ws(
-  _definition: string,
-  _handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
-  _pipes?: WebSocketPipe[],
+  definition: string,
+  handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
+  pipes?: Pipe<WebSocketEndpoint>[],
 ) {
-  return new WebSocketAction(_definition, _handler, _pipes)
+  return new WebSocketAction(definition, handler, pipes)
 }

@@ -1,17 +1,17 @@
 import Endpoint from '../endpoint/Endpoint'
-import Pipe from '../pipe'
+import Pipe from '../core/pipe'
 
 export default class Action {
   definition: string
   path: Array<string>
   method: string
   handler: (endpoint: Endpoint) => Promise<Endpoint>
-  pipes?: Pipe[]
+  pipes?: Pipe<Endpoint>[]
 
   constructor(
     _definition: string,
     _handler: (endpoint: Endpoint) => Promise<Endpoint>,
-    _pipes?: Pipe[],
+    _pipes?: Pipe<Endpoint>[],
   ) {
     this.definition = _definition
 
@@ -31,6 +31,12 @@ export default class Action {
     }
 
     if (pathParts.length === 0) {
+      /**
+       * Catchall Routes (not Wildcard Routes) can be used to match a section of a route either starting with or ending with a specific value.
+       *
+       * endsWith:     **.php   -> /any/path/whatever.php, /////whatever.php, literally-anythiing.php
+       * startsWith:   /api/**  -> /api/anypath
+       */
       if (definition[1].startsWith('**') && definition[1].includes('.')) {
         // Handles catchall wildcard matching without overriding all paths the way a normal wildcard does.
         // This is useful for catching all requests ending with a specific file type.
@@ -72,7 +78,7 @@ export default class Action {
 export function action(
   definition: string,
   handler: (endpoint: Endpoint) => Promise<Endpoint>,
-  pipes?: Pipe[],
+  pipes?: Pipe<Endpoint>[],
 ) {
   return new Action(definition, handler, pipes)
 }

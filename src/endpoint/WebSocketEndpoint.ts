@@ -46,7 +46,7 @@ export default class WebSocketEndpoint extends BaseEndpoint {
     ws: ServerWebSocket<WebSocketEndpointData>,
     message?: string | Buffer,
   ) {
-    super()
+    super(true)
 
     this.message = message
     this.parseMessage()
