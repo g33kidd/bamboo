@@ -163,4 +163,4 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
  * Helper function for creating a new Pipe().
  * @param
  */
-export default pipe('static', parseStatic, [])
+export default new Pipe('bamboo:static', parseStatic, [])

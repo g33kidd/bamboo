@@ -1,7 +1,7 @@
-import Pipe from '../pipe'
+import Pipe from '../core/pipe'
 
 export default new Pipe(
-  'ratelimit',
+  'bamboo:ratelimit',
   async (endpoint) => {
     return endpoint
   },

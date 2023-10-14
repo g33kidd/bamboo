@@ -26,7 +26,7 @@ export function wsPipe(
 }
 
 /**
- * Setup an endpoint with a JSON Response.
+ * Creates a JSON response for an endpoint, locks the endpoint, and returns it.
  */
 export async function json(endpoint: Endpoint, data: any) {
   if (endpoint.locked) {
@@ -65,6 +65,9 @@ export async function status(
   // At this point we shouldn't modify the request.
 }
 
+/**
+ * Creates a simple text response for an endpoint, locks the endpoint, and returns it
+ */
 export async function text(endpoint: Endpoint, text: string) {
   if (endpoint.locked) {
     return endpoint
