@@ -19,7 +19,7 @@ export default class TelegramServer {
       socket: {
         open(socket) {
           // TODO: Add optional logging component for this
-          // console.log('Client 🗞️ connected from', socket.remoteAddress)
+          console.log('Client 🗞️ connected from', socket.remoteAddress)
         },
         close(socket) {
           server.clients.delete(socket)

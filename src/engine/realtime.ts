@@ -3,6 +3,30 @@ import WebSocketActionRegistry from '../actions/websocketRegistry'
 import Pipe from '../core/pipe'
 import WebSocketEndpoint from '../endpoint/WebSocketEndpoint'
 
+interface PresenceEntity<EntityType> {
+  key: string
+  state: EntityType
+}
+
+interface PresenceConfig<StateType, EntityType> {
+  open(state: StateType, entity: PresenceEntity<EntityType>): void
+  close(): void
+  recvPing(): void
+  sendPing(): void
+}
+
+interface Presence {
+  constructor<StateType, EntityType>(
+    key: string,
+    state: StateType,
+    config: PresenceConfig<StateType, EntityType>,
+  ): Presence
+}
+
+// interface PresenceCollection {
+//   constructor(): PresenceCollection
+// }
+
 // === from the previous rooms.ts
 // import { WebSocketEndpoint } from '..'
 
