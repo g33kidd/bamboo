@@ -1,6 +1,13 @@
 import Endpoint from '../endpoint/Endpoint'
 import Pipe from '../core/pipe'
 
+/**
+ * TODO: This stuff should be moved into core/actions.
+ *
+ * The same thing should also be done with Action. Make a reusable
+ * base class.
+ */
+
 export default class Action {
   definition: string
   path: Array<string>

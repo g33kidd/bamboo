@@ -76,6 +76,12 @@ export class Engine {
   registry: ActionRegistry = new ActionRegistry()
 
   /**
+   * Extension storage
+   * TODO: This
+   */
+  // extensions: Map<string, Extension> = new Map()
+
+  /**
    * Service instance storage
    */
   services: Map<string, Service<any>> = new Map()

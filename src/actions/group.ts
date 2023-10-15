@@ -2,6 +2,8 @@ import Pipe from '../core/pipe'
 import Endpoint from '../endpoint/Endpoint'
 import Action from './action'
 
+// TODO: This should also be moved into core/
+
 export default class ActionGroup {
   scope: string
   actions: Action[]

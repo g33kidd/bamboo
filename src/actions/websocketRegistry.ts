@@ -1,6 +1,8 @@
 import { MessageParameters } from '../endpoint/WebSocketEndpoint'
 import WebSocketAction from './websocketAction'
 
+// TODO: Move this into core/
+
 export type WebSocketActionWithParams = {
   action: WebSocketAction
   params: Map<string, any>

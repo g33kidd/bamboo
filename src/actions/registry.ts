@@ -2,6 +2,8 @@ import Endpoint from '../endpoint/Endpoint'
 import Action from './action'
 import ActionGroup from './group'
 
+// TODO: This should be moved into core/ as well.
+
 export type ActionWithParams = {
   action: Action | null
   params: Map<string, any>

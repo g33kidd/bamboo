@@ -18,6 +18,9 @@ import { pipe, wsPipe } from './src/helpers'
 import staticPipe from './src/pipes/static'
 import devhub from './src/extensions/devhub'
 import { json } from './src/helpers/response'
+import Bamboo from './src/bamboo'
+
+export default Bamboo
 
 export {
   engine,

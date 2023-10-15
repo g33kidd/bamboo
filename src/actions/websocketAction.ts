@@ -1,6 +1,7 @@
 import Pipe from '../core/pipe'
 import WebSocketEndpoint from '../endpoint/WebSocketEndpoint'
 
+// TODO: Move this into core/
 // RealtimeAction / RealtimeRegistry
 
 export default class WebSocketAction {
