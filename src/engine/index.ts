@@ -49,32 +49,73 @@ export type EngineLimiter = {
 //   handlers: WebSocketHandler[];
 // };
 
+/**
+ * An Engine is responsible for handling the application server, extensions and anything else you might need during development.
+ * By default, a default engine is created and exported for you. This is an essential part of Bamboo as it allows other modules to interact with the engine.
+ * However, in the future, this will not be a requirement.
+ */
 export class Engine {
+  /**
+   * Bun's HTTP Server
+   */
   server?: Server
+
+  /**
+   * Application HTTP pipe storage
+   */
   pipes: Array<Pipe<Endpoint>> = []
+
+  /**
+   * Application configuration
+   */
   config: ApplicationConfig
-  actions: Array<Action | ActionGroup> = []
+
+  /**
+   * HTTP Action Registry
+   */
   registry: ActionRegistry = new ActionRegistry()
+
+  /**
+   * Service instance storage
+   */
   services: Map<string, Service<any>> = new Map()
-  workers: Map<string, Worker> = new Map()
+
+  // NOTE: This is not currently used, and probably never will be.
+  // workers: Map<string, Worker> = new Map()
+
+  /**
+   * Engine logging service
+   */
   logging: Logger = new Logger()
 
+  // NOTE: This was supposed to be for realtime rooms, but this is a WIP.
   // rooms: RoomService = new RoomService();
   // rooms: Map<string, Room> = new Map();
 
   // Rate Limiting
-  rateLimiters: Map<string, EngineLimiter>
+  // rateLimiters: Map<string, EngineLimiter>
   // This needs to support an external service like redis.
   // TODO: It also needs to be separate from this, ie, not in the main Engine.
-  rateCache?: Map<string, number>
+  // rateCache?: Map<string, number>
 
+  /**
+   * WebSocket configuration for the engine
+   */
   websocket?: EngineWebSocketConfig
+
+  /**
+   * Realtime engine that powers realtime/websocket requests
+   */
   realtime: RealtimeEngine = new RealtimeEngine()
 
+  /**
+   * Edge (from AdonisJS) is used as the templating engine currently, this is
+   * the edgejs instance.
+   */
   edge: Edge
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
-    this.rateLimiters = new Map()
+    // this.rateLimiters = new Map()
     this.config = appConfig
     this.config.pathMap = new Map()
     this.edge = new Edge({ cache: true })
@@ -101,67 +142,70 @@ export class Engine {
   /**
    * Configures the engine based on the EngineConfig passed in.
    */
-  configure(config: EngineConfig) {
-    if (!this.config.pathMap) {
-      this.config.pathMap = new Map<string, string>()
-    }
+  configure(config?: EngineConfig) {
+    // If a custom configuration was passed in, use that. Otherwise, we'll assume the file structure and configure through that.
+    if (config) {
+      if (!this.config.pathMap) {
+        this.config.pathMap = new Map<string, string>()
+      }
 
-    // console.log(this.config.paths);
-    this.edge.mount(this.config.paths.views)
+      // console.log(this.config.paths);
+      this.edge.mount(this.config.paths.views)
 
-    // Copy pipes from the config into the Engine.
-    if (config.pipes) {
-      if (config.pipes.length > 0) {
-        for (let p = 0; p < config.pipes.length; p++) {
-          const pipe = config.pipes[p]
-          this.pipes.push(pipe)
+      // Copy pipes from the config into the Engine.
+      if (config.pipes) {
+        if (config.pipes.length > 0) {
+          for (let p = 0; p < config.pipes.length; p++) {
+            const pipe = config.pipes[p]
+            this.pipes.push(pipe)
+          }
         }
       }
-    }
 
-    // Copy services from the config into the Engine.
-    if (config.services) {
-      if (config.services.length > 0) {
-        for (let i = 0; i < config.services.length; i++) {
-          const service = config.services[i]
-          this.services.set(service.name, service.instance)
+      // Copy services from the config into the Engine.
+      if (config.services) {
+        if (config.services.length > 0) {
+          for (let i = 0; i < config.services.length; i++) {
+            const service = config.services[i]
+            this.services.set(service.name, service.instance)
+          }
         }
       }
-    }
 
-    // Copy actions from the config into the Engine.
-    if (config.actions) {
-      if (config.actions.length > 0) {
-        for (let a = 0; a < config.actions.length; a++) {
-          const action = config.actions[a]
-          this.actions.push(action)
+      // Copy actions from the config into the Engine.
+      if (config.actions) {
+        if (config.actions.length > 0) {
+          for (let a = 0; a < config.actions.length; a++) {
+            const actionOrGroup = config.actions[a]
+            // Adds a new ActionGroup to the action registry.
+            if (actionOrGroup instanceof ActionGroup) {
+              this.registry.group(actionOrGroup)
+            }
+
+            // Adds a single Action into the action registry.
+            if (actionOrGroup instanceof Action) {
+              this.registry.action(actionOrGroup)
+            }
+          }
         }
       }
-    }
 
-    // Copy from the configuration into the engine.
-    if (config.websocket) {
-      this.websocket = config.websocket
-      if (this.websocket.actions.length > 0) {
-        for (let i = 0; i < this.websocket.actions.length; i++) {
-          this.realtime.actions.action(this.websocket.actions[i])
+      // Copy from the configuration into the engine.
+      if (config.websocket) {
+        this.websocket = config.websocket
+        if (this.websocket.actions.length > 0) {
+          for (let i = 0; i < this.websocket.actions.length; i++) {
+            this.realtime.actions.action(this.websocket.actions[i])
+          }
         }
       }
-    }
+    } else {
+      // TODO: Load configuration from these directories, import them and utilize them during Engine setup.
+      // TODO: Figure out a suitable file structure for Bamboo.
+      const pipes = join(cwd(), 'pipes')
+      const actions = join(cwd(), 'actions')
 
-    // Add actions to the action registry.
-    for (let a = 0; a < this.actions.length; a++) {
-      const actionOrGroup = this.actions[a]
-
-      // Adds a new ActionGroup to the action registry.
-      if (actionOrGroup instanceof ActionGroup) {
-        this.registry.group(actionOrGroup)
-      }
-
-      // Adds a single Action into the action registry.
-      if (actionOrGroup instanceof Action) {
-        this.registry.action(actionOrGroup)
-      }
+      this.logging.log('No EngineConfig, loading configuration from:', cwd())
     }
 
     return this
@@ -345,7 +389,9 @@ export class Engine {
     return endpoint
   }
 
-  // Handles an incoming request.
+  /**
+   * Handles an incoming request
+   */
   async handle(endpoint: Endpoint) {
     endpoint = await this.handlePipes(endpoint)
     endpoint = await this.handleAction(endpoint)
@@ -359,10 +405,11 @@ export class Engine {
     return endpoint
   }
 
-  // Handles an action for an incoming request.
+  /**
+   * Handles an action for an incoming request
+   */
   async handleAction(endpoint: Endpoint) {
     const parsedPath = parseActionURL(endpoint)
-    // console.log(parsedPath)
     const { action, params }: ActionWithParams = this.registry.parse(
       endpoint.request.method,
       parsedPath,
@@ -386,45 +433,45 @@ export class Engine {
    *
    * TODO: Move this.
    */
-  ratelimit(
-    context: string,
-    limit: number = 60,
-    interval: number = 1000 * 60,
-  ): boolean {
-    const limiterContext = context.split('/')[0] // removes the IP hash from the context.
-    const limiter = this.rateLimiters.get(limiterContext)
+  // ratelimit(
+  //   context: string,
+  //   limit: number = 60,
+  //   interval: number = 1000 * 60,
+  // ): boolean {
+  //   const limiterContext = context.split('/')[0] // removes the IP hash from the context.
+  //   const limiter = this.rateLimiters.get(limiterContext)
 
-    // Create a limiter if there is none specified at Engine start.
-    if (!limiter) {
-      this.rateLimiters.set(limiterContext, {
-        amount: limit,
-        perIntervalMs: interval,
-      })
-    }
+  //   // Create a limiter if there is none specified at Engine start.
+  //   if (!limiter) {
+  //     this.rateLimiters.set(limiterContext, {
+  //       amount: limit,
+  //       perIntervalMs: interval,
+  //     })
+  //   }
 
-    // let now = Date.now()
-    let currentAmount = 0
+  //   // let now = Date.now()
+  //   let currentAmount = 0
 
-    if (!this.rateCache) {
-      this.rateCache = new Map()
-    }
+  //   if (!this.rateCache) {
+  //     this.rateCache = new Map()
+  //   }
 
-    if (!this.rateCache.has(context)) {
-      this.rateCache.set(context, 0)
-    } else {
-      const current = this.rateCache.get(context)
-      if (current) {
-        currentAmount = current + 1
-        this.rateCache.set(context, currentAmount)
-      }
-    }
+  //   if (!this.rateCache.has(context)) {
+  //     this.rateCache.set(context, 0)
+  //   } else {
+  //     const current = this.rateCache.get(context)
+  //     if (current) {
+  //       currentAmount = current + 1
+  //       this.rateCache.set(context, currentAmount)
+  //     }
+  //   }
 
-    if (currentAmount <= limit) {
-      return false
-    } else {
-      return true
-    }
-  }
+  //   if (currentAmount <= limit) {
+  //     return false
+  //   } else {
+  //     return true
+  //   }
+  // }
 
   /**
    * Creates a limiter.
@@ -433,13 +480,16 @@ export class Engine {
    * @param limit Number of requests allowed.
    * @param interval Interval in which the limit is allowed.
    */
-  limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
-    this.rateLimiters?.set(context, {
-      amount: limit,
-      perIntervalMs: interval,
-    })
-  }
+  // limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
+  //   this.rateLimiters?.set(context, {
+  //     amount: limit,
+  //     perIntervalMs: interval,
+  //   })
+  // }
 
+  /**
+   * Handles global application pipes for HTTP actions
+   */
   async handlePipes(endpoint: Endpoint) {
     for (let index = 0; index < this.pipes.length; index++) {
       const pipe = this.pipes[index]
@@ -451,6 +501,9 @@ export class Engine {
 }
 
 // TODO: Load this from a configuration file.
+/**
+ * The default engine that is provided
+ */
 const defaultEngine = new Engine(
   {
     paths: {

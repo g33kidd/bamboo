@@ -1,6 +1,7 @@
-import { WebSocketAction, WebSocketEndpoint, WebSocketPipe } from '../..'
+import WebSocketAction from '../actions/websocketAction'
 import WebSocketActionRegistry from '../actions/websocketRegistry'
 import Pipe from '../core/pipe'
+import WebSocketEndpoint from '../endpoint/WebSocketEndpoint'
 
 // === from the previous rooms.ts
 // import { WebSocketEndpoint } from '..'

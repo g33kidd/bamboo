@@ -97,3 +97,79 @@ endpoint.fromStash('profile.id')
 ### Example Usage
 
 There are currently a few examples in the `/examples` and `/test` folders.
+
+# My Notes
+
+### Engine
+
+Currently, there is a single instance of `Engine` that is created when you call
+`import {engine} from 'bamboo'` and this serves as the entire application's
+engine to work with. In the future, this needs to be changed to `createEngine()`
+so that additional instances can be created if needed.
+
+### Endpoint Responses
+
+Unsure if this is possible, but with responses it's kind of messy looking when I
+have to call `endpoint.json()` or anything else where I need to use an endpoint.
+I've been thinking about scopes and creating helper functions where the value of
+`endpoint` is known to exist, so it just uses it without having to pass it in.
+This would make for simpler and cleaner code, I think.
+
+Currently my investigation reveals that this is possible, but with TypeScript it
+may be tricky to implement without requiring `// @ts-ignore` everywhere.
+
+This is the concept:
+
+```typescript
+class Engine {
+  val: string = '1'
+  constructor(handler: (val: string) => string) {
+    console.log('value:', this.val)
+    this.val = handler(this.val)
+    console.log('value:', this.val)
+  }
+}
+
+function json(data: any): string {
+  // We can use 'val' here from the parent scope.
+  return JSON.stringify(data)
+}
+
+new Engine((val) => {
+  return json({
+    val: val + '-yes-hello',
+  })
+})
+```
+
+So that in the future our helper functions would look like below. I'll use the
+websocket stash as an example:
+
+```typescript
+stash('profile.id', 1)
+
+// Under the hood I imagine this looking something like:
+
+function stash<T>(name: string, value?: T): T | null {
+  // But we need to tell typescript that this doesn't exist in this current scope, it exists in the parent scope.
+  // Since the endpoint is modified directly, we shouldn't have to return it either. However, for some we will just
+  // want to return the value.
+  if (endpoint && endpoint instanceof Endpoint) {
+    if (value) {
+      // Writing to the stash, return null later.
+      endpoint.stash(name, value)
+    } else {
+      return endpoint.fromStash(name)
+    }
+  }
+
+  return null
+}
+
+// Other examples:
+json({})
+text('Hi')
+status(404, 'Not Found')
+putIf(isAdmin, 'admin', true)
+put('profile.id', 1)
+```

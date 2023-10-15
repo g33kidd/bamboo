@@ -6,7 +6,6 @@ import ActionGroup, { group } from './src/actions/group'
 import Service, { service } from './src/core/service'
 import WebSocketEndpoint from './src/endpoint/WebSocketEndpoint'
 import WebSocketAction, { ws } from './src/actions/websocketAction'
-import WebSocketPipe from './src/websocketPipe'
 import TelegramClient from './src/telegram/client'
 import TelegramServer from './src/telegram/server'
 
@@ -18,6 +17,7 @@ import { pipe, wsPipe } from './src/helpers'
 // Internal Pipes
 import staticPipe from './src/pipes/static'
 import devhub from './src/extensions/devhub'
+import { json } from './src/helpers/response'
 
 export {
   engine,
@@ -30,7 +30,6 @@ export {
   Action,
   ActionGroup,
   WebSocketAction,
-  WebSocketPipe,
   Service,
 
   // Telegram
@@ -44,6 +43,9 @@ export {
   ws,
   wsPipe,
   pipe,
+
+  // Response Helpers
+  json,
 
   // Storage & Files
   ensureStorageDirs,

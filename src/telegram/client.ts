@@ -45,6 +45,9 @@ export default class TelegramClient {
     }
   }
 
+  /**
+   * Connects to the TelegramServer
+   */
   async connect(hostname: string, port: number) {
     const client = this
     Bun.connect<Machine>({

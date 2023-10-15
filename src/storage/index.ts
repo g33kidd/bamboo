@@ -1,6 +1,7 @@
 import { exists, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { cwd } from 'process'
+import { engine } from '../..'
 
 // TODO: Create methods for deleting entire files or even chunks of files.
 // TODO: Create a method for creating directories.
@@ -25,7 +26,7 @@ export async function ensureStorageDirs(dirs: string[]) {
     const path = join(storagePath, dir)
     const dirExists = await exists(path)
     if (!dirExists) {
-      console.info(
+      engine.logging.log(
         'Storage directory',
         dir,
         'did not exist. Creating new folder at:',
@@ -61,7 +62,7 @@ export async function saveFile(dir: string, name: string, buffer: Buffer) {
     const bytesWritten = await Bun.write(path, buffer)
 
     if (bytesWritten !== buffer.byteLength) {
-      console.error(
+      engine.logging.log(
         'File at:',
         path,
         'could not be saved. bufByteLength:',
