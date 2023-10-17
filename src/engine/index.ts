@@ -16,6 +16,7 @@ import WebSocketEndpoint, {
   WebSocketEndpointData,
 } from '../endpoint/WebSocketEndpoint'
 import Logger, { createLogAdapter } from '../core/logging'
+import PresenceEngine from './presence'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -113,6 +114,11 @@ export class Engine {
    * Realtime engine that powers realtime/websocket requests
    */
   realtime: RealtimeEngine = new RealtimeEngine()
+
+  /**
+   * Presence engine
+   */
+  presence: PresenceEngine = new PresenceEngine()
 
   /**
    * Edge (from AdonisJS) is used as the templating engine currently, this is

@@ -3,10 +3,10 @@ import { engine } from '../..'
 import BaseEndpoint from './BaseEndpoint'
 
 export default class Endpoint extends BaseEndpoint {
+  head: boolean = false
   request: Request
   response?: Response
   parts: string[]
-  // params: Map<string, any> = new Map()
   url: URL
 
   locked: boolean = false
@@ -24,20 +24,20 @@ export default class Endpoint extends BaseEndpoint {
     const parts = this.url.pathname.split('/')
     this.parts = parts.filter((p) => p !== '')
 
-    // TODO: Parameters
-    // console.log(...this.url.searchParams)
-  }
+    if (
+      this.request.method === 'POST' ||
+      this.request.method === 'PUT' ||
+      this.request.method === 'PATCH'
+    ) {
+      this.request.json().then((json) => {
+        this.params = json
+      })
+    }
 
-  /**
-   * Returns the time it took between the start and end of the request.
-   */
-  // time() {
-  //   if (this.timeEnd) {
-  //     return Number(this.timeEnd - this.timeStart) / 1000
-  //   } else {
-  //     return 0
-  //   }
-  // }
+    if (this.request.method === 'HEAD') {
+      this.head = true
+    }
+  }
 
   /**
    * Creates a secure random token that includes a UTC timestamp. Used for CSRF, etc..
@@ -85,25 +85,11 @@ export default class Endpoint extends BaseEndpoint {
   }
 
   /**
-   * Stores a value in the Endpoint stash for use later on in the request lifecycle.
-   */
-  // stash(key: string, value?: any) {
-  //   if (!this.stashMap.has(key)) {
-  //     this.stashMap.set(key, value)
-  //   } else {
-  //     // If there is no value, assume that we're trying to fetch the value.
-  //     if (!value) {
-  //       return this.stashMap.get(key)
-  //     }
-  //   }
-  // }
-
-  /**
    * Returns either a parameter from a JSON body or a search param.
    * Or returns the default value if specified, or returns null.
    */
-  param(key: string, defaultValue?: any) {
-    const param = this.params.get(key)
+  param<T>(key: string, defaultValue?: any): T | any | null {
+    const param = this.params[key]
     const searchParam = this.url.searchParams.get(key)
 
     if (!param) {
@@ -115,6 +101,13 @@ export default class Endpoint extends BaseEndpoint {
     } else {
       return param
     }
+  }
+
+  /**
+   * Returns all parameters that are attached to this endpoint.
+   */
+  all<T>(defaultValue?: T | any): T | any {
+    return this.params as T
   }
 
   /**
