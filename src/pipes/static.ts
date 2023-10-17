@@ -70,7 +70,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   }
 
   const url = endpoint.parts
-  if (url.length <= 1) return endpoint
+  if (url.length < 1) return endpoint
 
   const expectedExt = url[url.length - 1].split('.')[1]
   const ext = isSupported(expectedExt) ? expectedExt : null
