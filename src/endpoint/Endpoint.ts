@@ -88,18 +88,26 @@ export default class Endpoint extends BaseEndpoint {
    * Returns either a parameter from a JSON body or a search param.
    * Or returns the default value if specified, or returns null.
    */
-  param<T>(key: string, defaultValue?: any): T | any | null {
+  param<T>(key: string, defaultValue?: any): T | null {
     const param = this.params[key]
-    const searchParam = this.url.searchParams.get(key)
 
+    // TODO: create a different method for search params
     if (!param) {
-      if (searchParam) {
-        return searchParam
-      } else {
-        return defaultValue || null
-      }
+      return defaultValue || null
     } else {
       return param
+    }
+  }
+
+  /**
+   * Retrives a value from searchParams.
+   */
+  search(key: string, defaultValue?: string): string | null {
+    const param = this.url.searchParams.get(key)
+    if (param) {
+      return param
+    } else {
+      return defaultValue || null
     }
   }
 
