@@ -37,8 +37,10 @@ export default class TelegramClient {
       payload: JSON.stringify(payload),
       time: Date.now(),
     }
+
+    // TODO: Write a nullbyte or something other than &b, because &b could be contained within the payload.
     const buf = Buffer.from(JSON.stringify(message) + '&b')
-    if (this.socket?.write(buf)) {
+    if (this.socket?.write(buf.buffer)) {
       // console.log('sent message')
     } else {
       console.error('message not sent', buf.toString())
@@ -79,11 +81,15 @@ export default class TelegramClient {
           // }, 1000)
         },
         error(socket, error) {
-          console.error(error)
+          console.log('Telegram client failed to connect')
+          // console.error(error)
+        },
+        connectError(socket, error) {
+          console.log('Telegram client failed to connect')
         },
         data(socket, data) {
           // TODO: This needs to be a readable stream.
-          const messageString = Buffer.from(data).toString()
+          const messageString = Buffer.from(data.buffer).toString()
           if (messageString) {
             const messages = messageString.split('&b').filter((m) => m !== '')
             for (let i = 0; i < messages.length; i++) {

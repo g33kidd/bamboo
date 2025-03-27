@@ -180,11 +180,19 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  ratelimit(context: string, limit: number = 60): boolean {
-    const ip = this.ws.remoteAddress.toString()
-    const ipHash = Buffer.from(ip).toString('base64')
-    context += `/${ipHash}`
-    return engine.ratelimit(context, limit)
+  ratelimit(
+    context: string,
+    limit: number = 60,
+    forIP: boolean = false,
+  ): boolean {
+    // TODO: Confirm that this IP address isn't blacklisted or anything.
+    if (forIP) {
+      const ip = this.ws.remoteAddress.toString()
+      const ipHash = Buffer.from(ip).toString('base64')
+      return engine.ratelimit(`${context}/${ipHash}`, limit)
+    } else {
+      return engine.ratelimit(context, limit)
+    }
   }
 
   /**
@@ -253,16 +261,20 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    * Or, if undefined, sends the stored response as a message.
    *
    * TODO: Refactor this. Why?
+   * NOTE: I still don't remember why I need to refactor this at all.
    */
   send(data?: string | Buffer) {
     if (!data) {
       if (this.response) {
         this.ws.send(this.response, this.compressed)
-        // console.log(sentBytes);
+        // console.log(sentBytes); TODO: Logging
       }
     } else {
-      this.ws.send(data, this.compressed)
-      // console.log(sentBytes);
+      if (typeof data === 'string') {
+        this.ws.send(data, this.compressed)
+      } else {
+        this.ws.send(data.buffer, this.compressed)
+      }
     }
   }
 

@@ -2,21 +2,26 @@ import { Server, ServerWebSocket } from 'bun'
 import { Edge } from 'edge.js'
 import { join } from 'path'
 import { cwd, hrtime } from 'process'
-import Action from '../actions/action'
+import Action, { action } from '../actions/action'
 import ActionGroup from '../actions/group'
 import ActionRegistry, { ActionWithParams } from '../actions/registry'
 import WebSocketAction from '../actions/websocketAction'
 import { BambooConfig } from '../config'
 import Endpoint from '../endpoint/Endpoint'
-import { parseActionURL } from '../helpers/action'
+import { loadActionDirectory, parseActionURL } from '../helpers/action'
 import Pipe from '../core/pipe'
 import RealtimeEngine from './realtime'
 import Service from '../core/service'
+import fs from 'fs/promises'
 import WebSocketEndpoint, {
   WebSocketEndpointData,
 } from '../endpoint/WebSocketEndpoint'
 import Logger, { createLogAdapter } from '../core/logging'
 import PresenceEngine from './presence'
+import { exists } from 'fs/promises'
+import RateLimitCache from '../extensions/ratelimit'
+import Extension from '../core/extension'
+import ExtensionContainer from '../core/extensions'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -78,9 +83,9 @@ export class Engine {
 
   /**
    * Extension storage
-   * TODO: This
    */
   // extensions: Map<string, Extension> = new Map()
+  extensions: ExtensionContainer = new ExtensionContainer()
 
   /**
    * Service instance storage
@@ -100,10 +105,11 @@ export class Engine {
   // rooms: Map<string, Room> = new Map();
 
   // Rate Limiting
-  // rateLimiters: Map<string, EngineLimiter>
+  limiters: Map<string, EngineLimiter> = new Map()
+  limiterCache?: RateLimitCache = new RateLimitCache()
   // This needs to support an external service like redis.
   // TODO: It also needs to be separate from this, ie, not in the main Engine.
-  // rateCache?: Map<string, number>
+  // NOTE: This is already done?
 
   /**
    * WebSocket configuration for the engine
@@ -123,14 +129,18 @@ export class Engine {
   /**
    * Edge (from AdonisJS) is used as the templating engine currently, this is
    * the edgejs instance.
+   *
+   * TODO: Replace this with a custom templating engine built for bun.
    */
   edge: Edge
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
-    // this.rateLimiters = new Map()
     this.config = appConfig
     this.config.pathMap = new Map()
     this.edge = new Edge({ cache: true })
+
+    // TODO: rate limiter configuration should be in the configuration section
+    this.limiterCache?.loadFromCacheFile()
 
     // Register the development console.log logger in development mode.
     if (process.env.NODE_ENV === 'development') {
@@ -140,8 +150,6 @@ export class Engine {
 
   /**
    * Path mapping for static assets.
-   *
-   * TODO: NOTE: This should be moved out of here...
    */
   mapPath(from: string, to: string) {
     if (this.config.pathMap) {
@@ -154,7 +162,7 @@ export class Engine {
   /**
    * Configures the engine based on the EngineConfig passed in.
    */
-  configure(config?: EngineConfig) {
+  async configure(config?: EngineConfig) {
     // If a custom configuration was passed in, use that. Otherwise, we'll assume the file structure and configure through that.
     if (config) {
       if (!this.config.pathMap) {
@@ -187,20 +195,16 @@ export class Engine {
       // Copy actions from the config into the Engine.
       if (config.actions) {
         if (config.actions.length > 0) {
-          for (let a = 0; a < config.actions.length; a++) {
-            const actionOrGroup = config.actions[a]
-            // Adds a new ActionGroup to the action registry.
-            if (actionOrGroup instanceof ActionGroup) {
-              this.registry.group(actionOrGroup)
-            }
-
-            // Adds a single Action into the action registry.
-            if (actionOrGroup instanceof Action) {
-              this.registry.action(actionOrGroup)
-            }
-          }
+          this.addActions(config.actions)
         }
       }
+
+      // Register actions from the application directory, if it exists in the current folder
+      // TODO: This still needs some work in order to properly load the actions.
+      // I suppose at this point it's quite similar to rails in the sense that we
+      // have "actions" and such. Whatever, keep going on this idea I guess.
+      //
+      // loadActionDirectory(this.config.paths.root)
 
       // Copy from the configuration into the engine.
       if (config.websocket) {
@@ -212,15 +216,32 @@ export class Engine {
         }
       }
     } else {
+      this.logging.log('No EngineConfig, loading configuration from:', cwd())
       // TODO: Load configuration from these directories, import them and utilize them during Engine setup.
-      // TODO: Figure out a suitable file structure for Bamboo.
+      // TODO: Figure out a suitable folder structure for Bamboo.
       const pipes = join(cwd(), 'pipes')
       const actions = join(cwd(), 'actions')
-
-      this.logging.log('No EngineConfig, loading configuration from:', cwd())
     }
 
     return this
+  }
+
+  /**
+   * Adds actions/groups to the action registry
+   */
+  addActions(actions: (Action | ActionGroup)[]) {
+    for (let a = 0; a < actions.length; a++) {
+      const actionOrGroup = actions[a]
+      // Adds a new ActionGroup to the action registry.
+      if (actionOrGroup instanceof ActionGroup) {
+        this.registry.group(actionOrGroup)
+      }
+
+      // Adds a single Action into the action registry.
+      if (actionOrGroup instanceof Action) {
+        this.registry.action(actionOrGroup)
+      }
+    }
   }
 
   /**
@@ -365,11 +386,7 @@ export class Engine {
   async handleWebSocketPipes(endpoint: WebSocketEndpoint) {
     if (this.websocket?.pipes) {
       for (let i = 0; i < this.websocket?.pipes.length; i++) {
-        const pipe = this.websocket.pipes[i]
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[wsPipe:${pipe.name}]`)
-        }
-        endpoint = await pipe.handle(endpoint)
+        endpoint = await this.websocket.pipes[i].handle(endpoint)
       }
     }
 
@@ -443,47 +460,28 @@ export class Engine {
    * TODO: Finish this, include the timestamp of the first request & most recent request to determine
    * if the limit should be reset, keep counting, or deny requests.
    *
-   * TODO: Move this.
+   * Ideally there should be a layer before the connection to this server that handles this too.
    */
-  // ratelimit(
-  //   context: string,
-  //   limit: number = 60,
-  //   interval: number = 1000 * 60,
-  // ): boolean {
-  //   const limiterContext = context.split('/')[0] // removes the IP hash from the context.
-  //   const limiter = this.rateLimiters.get(limiterContext)
+  ratelimit(
+    context: string,
+    limit: number = 60,
+    interval: number = 1000 * 60,
+  ): boolean {
+    const limiterContext = context.split('/')[0] // removes the IP hash from the context.
+    const limiter = this.limiters.get(limiterContext)
 
-  //   // Create a limiter if there is none specified at Engine start.
-  //   if (!limiter) {
-  //     this.rateLimiters.set(limiterContext, {
-  //       amount: limit,
-  //       perIntervalMs: interval,
-  //     })
-  //   }
+    // Create a limiter if there is none specified at Engine start.
+    if (!limiter) this.limiter(limiterContext, limit, interval)
 
-  //   // let now = Date.now()
-  //   let currentAmount = 0
+    // TODO: There should be rate cache adapter that handles different types of storage for rate limits.
+    // One might want to use file, json, database, redis, etc...
+    if (!this.limiterCache) {
+      this.limiterCache = new RateLimitCache()
+    }
 
-  //   if (!this.rateCache) {
-  //     this.rateCache = new Map()
-  //   }
-
-  //   if (!this.rateCache.has(context)) {
-  //     this.rateCache.set(context, 0)
-  //   } else {
-  //     const current = this.rateCache.get(context)
-  //     if (current) {
-  //       currentAmount = current + 1
-  //       this.rateCache.set(context, currentAmount)
-  //     }
-  //   }
-
-  //   if (currentAmount <= limit) {
-  //     return false
-  //   } else {
-  //     return true
-  //   }
-  // }
+    const limitRecord = this.limiterCache.track(context)
+    return limitRecord.current <= limit
+  }
 
   /**
    * Creates a limiter.
@@ -492,12 +490,12 @@ export class Engine {
    * @param limit Number of requests allowed.
    * @param interval Interval in which the limit is allowed.
    */
-  // limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
-  //   this.rateLimiters?.set(context, {
-  //     amount: limit,
-  //     perIntervalMs: interval,
-  //   })
-  // }
+  limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
+    this.limiters?.set(context, {
+      amount: limit,
+      perIntervalMs: interval,
+    })
+  }
 
   /**
    * Handles global application pipes for HTTP actions
@@ -509,6 +507,21 @@ export class Engine {
     }
 
     return endpoint
+  }
+
+  /**
+   * Registers an extension within the engine
+   *
+   * At the moment I can't think of anything else to add to this until I start
+   * setting up an extension with the engine first. I don't know what else I need
+   * besides a few hooks.
+   */
+  extend(extension: Extension | Function) {
+    if (typeof extension === 'function') {
+      extension()
+    } else {
+      this.extensions.add(extension)
+    }
   }
 }
 

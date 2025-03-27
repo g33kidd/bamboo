@@ -13,12 +13,14 @@ export default class Action {
   path: Array<string>
   method: string
   handler: (endpoint: Endpoint) => Promise<Endpoint>
+  beforePipes?: (endpoint: Endpoint) => Promise<Endpoint>
   pipes?: Pipe<Endpoint>[]
 
   constructor(
     _definition: string,
     _handler: (endpoint: Endpoint) => Promise<Endpoint>,
     _pipes?: Pipe<Endpoint>[],
+    _beforePipes?: (endpoint: Endpoint) => Promise<Endpoint>,
   ) {
     this.definition = _definition
 
@@ -61,12 +63,22 @@ export default class Action {
     }
 
     this.handler = _handler
+    this.beforePipes = _beforePipes
     this.pipes = _pipes
   }
 
   async handle(endpoint: Endpoint) {
+    /**
+     * There may be a case where one needs to perform an action and assign some data before the pipeline is run so
+     * that's why this was created.
+     */
+    if (this.beforePipes) {
+      endpoint = await this.beforePipes(endpoint)
+    }
+
     endpoint = await this.handlePipes(endpoint)
     endpoint = await this.handler(endpoint)
+
     return endpoint
   }
 
@@ -86,6 +98,7 @@ export function action(
   definition: string,
   handler: (endpoint: Endpoint) => Promise<Endpoint>,
   pipes?: Pipe<Endpoint>[],
+  beforePipes?: (endpoint: Endpoint) => Promise<Endpoint>,
 ) {
-  return new Action(definition, handler, pipes)
+  return new Action(definition, handler, pipes, beforePipes)
 }

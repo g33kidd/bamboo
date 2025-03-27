@@ -59,7 +59,7 @@ export async function saveFile(dir: string, name: string, buffer: Buffer) {
       }
     }
 
-    const bytesWritten = await Bun.write(path, buffer)
+    const bytesWritten = await Bun.write(path, buffer.buffer)
 
     if (bytesWritten !== buffer.byteLength) {
       engine.logging.log(

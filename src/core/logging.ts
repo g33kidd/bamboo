@@ -22,6 +22,14 @@ export default class Logger {
   }
 }
 
+/**
+ * Allows the developer to create a log adapter.
+ *
+ * Example:
+ *    createLogAdapter('console', (data) => console.log(data));
+ *
+ * It can be used to create more complex adapters or build them on the fly.
+ */
 export function createLogAdapter(
   name: string,
   log: (...data: any[]) => void,

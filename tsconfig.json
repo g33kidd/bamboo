@@ -5,6 +5,7 @@
     "target": "esnext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
+    "experimentalDecorators": true,
     "allowImportingTsExtensions": true,
     "strict": true,
     "downlevelIteration": true,

@@ -1,3 +1,5 @@
+import fs, { exists } from 'fs/promises'
+import { join } from 'path'
 import Endpoint from '../endpoint/Endpoint'
 
 export function parseActionURL(endpoint: Endpoint) {
@@ -16,6 +18,19 @@ export function parseActionURL(endpoint: Endpoint) {
   }
 
   return parsed
+}
+
+export async function loadActionDirectory(path: string): Promise<string[]> {
+  const pathMap = []
+  path = join(path, 'actions')
+  const pathExists = await exists(path)
+  if (pathExists) {
+    const contents = await fs.readdir(path)
+    for (const file of contents) {
+      pathMap.push(file)
+    }
+  }
+  return pathMap
 }
 
 // TODO: Extract parameter parsing to here.
