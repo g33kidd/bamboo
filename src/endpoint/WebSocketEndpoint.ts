@@ -2,6 +2,31 @@ import { ServerWebSocket } from 'bun'
 import { engine } from '../..'
 import BaseEndpoint from './BaseEndpoint'
 
+// sent events through using WebSocketEndpoint.pub or sendEvent
+export type EventContainer = {
+  event: string
+  data: Object
+  persist: boolean
+  expiresAt?: string
+}
+
+/**
+ * used to create response schema, and for types!
+ */
+function createEventContainer(
+  event: string,
+  data: Object,
+  persist: boolean = false,
+  expiresAt?: string,
+): EventContainer {
+  return {
+    event,
+    data,
+    persist,
+    expiresAt: expiresAt ?? '',
+  }
+}
+
 export type MessageParameters = {
   event: string
   parameters?: any
@@ -66,6 +91,13 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   }
 
   /**
+   * Checks if the client is still connected.
+   */
+  isAvailable() {
+    return this.ws.readyState === 1
+  }
+
+  /**
    * TODO: Improve this functionality. Ideally, it should allow for data to be listened to.
    */
 
@@ -99,7 +131,7 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   }
 
   /** Gets data from the websocket context. */
-  get(key: string, defaultValue?: any) {
+  get<T = any>(key: string, defaultValue?: any) {
     return this.ws.data[key] || defaultValue || null
   }
 
@@ -262,6 +294,7 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    *
    * TODO: Refactor this. Why?
    * NOTE: I still don't remember why I need to refactor this at all.
+   * NOTE: still don't remember why, but keep checking back :)
    */
   send(data?: string | Buffer) {
     if (!data) {
@@ -273,8 +306,33 @@ export default class WebSocketEndpoint extends BaseEndpoint {
       if (typeof data === 'string') {
         this.ws.send(data, this.compressed)
       } else {
+        // NOTE: send as buffer because a string data type will be sent as a buffer anyways.
         this.ws.send(data.buffer, this.compressed)
       }
+    }
+  }
+
+  /**
+   * Sends an event kind of like `pub` would, but sends it to the client
+   * directly.
+   *
+   * TODO: Create a general 'lobby' for the client so we don't have a bunch
+   * of random websocket channels laying around.
+   */
+  sendEvent(event: string, data: object) {
+    try {
+      if (this.isAvailable()) {
+        const response = JSON.stringify({
+          event,
+          data,
+        })
+
+        this.ws.send(response)
+      } else {
+        throw new Error('Cannot publish event. Client not connected!')
+      }
+    } catch (error) {
+      //
     }
   }
 

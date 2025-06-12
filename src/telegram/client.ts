@@ -39,6 +39,7 @@ export default class TelegramClient {
     }
 
     // TODO: Write a nullbyte or something other than &b, because &b could be contained within the payload.
+    // NOTE: Or create a global message cache that just appends to the list then writes to the socket??
     const buf = Buffer.from(JSON.stringify(message) + '&b')
     if (this.socket?.write(buf.buffer)) {
       // console.log('sent message')
