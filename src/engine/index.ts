@@ -16,12 +16,13 @@ import fs from 'fs/promises'
 import WebSocketEndpoint, {
   WebSocketEndpointData,
 } from '../endpoint/WebSocketEndpoint'
-import Logger, { createLogAdapter } from '../core/logging'
+import Logger, { createLogAdapter, LogLevel } from '../core/logging'
 import PresenceEngine from './presence'
 import { exists } from 'fs/promises'
 import RateLimitCache from '../extensions/ratelimit'
 import Extension from '../core/extension'
 import ExtensionContainer from '../core/extensions'
+import { ConsoleLogAdapter } from '../core/adapters/logging'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -92,6 +93,12 @@ export class Engine {
    */
   services: Map<string, Service<any>> = new Map()
 
+  /**
+   * Worker threads for CPU-intensive tasks
+   * Used for: image processing, data analysis, background jobs, heavy computations
+   */
+  workers: Map<string, any> = new Map()
+
   // NOTE: This is not currently used, and probably never will be.
   // workers: Map<string, Worker> = new Map()
 
@@ -144,7 +151,11 @@ export class Engine {
 
     // Register the development console.log logger in development mode.
     if (process.env.NODE_ENV === 'development') {
-      this.logging.register(createLogAdapter('dev-console', console.log))
+      this.logging.register(ConsoleLogAdapter)
+      this.logging.setLevel(LogLevel.DEBUG)
+    } else {
+      this.logging.register(ConsoleLogAdapter)
+      this.logging.setLevel(LogLevel.INFO)
     }
   }
 
@@ -163,7 +174,6 @@ export class Engine {
    * Configures the engine based on the EngineConfig passed in.
    */
   async configure(config?: EngineConfig) {
-    // If a custom configuration was passed in, use that. Otherwise, we'll assume the file structure and configure through that.
     if (config) {
       if (!this.config.pathMap) {
         this.config.pathMap = new Map<string, string>()
@@ -216,14 +226,328 @@ export class Engine {
         }
       }
     } else {
-      this.logging.log('No EngineConfig, loading configuration from:', cwd())
-      // TODO: Load configuration from these directories, import them and utilize them during Engine setup.
-      // TODO: Figure out a suitable folder structure for Bamboo.
-      const pipes = join(cwd(), 'pipes')
-      const actions = join(cwd(), 'actions')
+      this.logging.info('No EngineConfig provided, using convention over configuration')
+      
+      // Convention over configuration - auto-discover from common directory structures
+      await this.loadConventionBasedConfiguration()
     }
 
     return this
+  }
+
+  /**
+   * Loads configuration based on common conventions
+   * Follows a Rails-like structure for easy onboarding
+   */
+  private async loadConventionBasedConfiguration() {
+    const rootDir = cwd()
+    
+    // Common directory patterns to check
+    const conventions = {
+      actions: ['actions', 'src/actions', 'app/actions', 'routes'],
+      pipes: ['pipes', 'src/pipes', 'app/pipes', 'middleware'],
+      services: ['services', 'src/services', 'app/services'],
+      views: ['views', 'src/views', 'app/views', 'templates'],
+      workers: ['workers', 'src/workers', 'app/workers'],
+      websocket: ['websocket', 'src/websocket', 'app/websocket', 'ws']
+    }
+
+    this.logging.info('Auto-discovering configuration from:', rootDir)
+
+    // Load actions
+    await this.loadActionsFromConvention(rootDir, conventions.actions)
+    
+    // Load pipes
+    await this.loadPipesFromConvention(rootDir, conventions.pipes)
+    
+    // Load services
+    await this.loadServicesFromConvention(rootDir, conventions.services)
+    
+    // Load views
+    await this.loadViewsFromConvention(rootDir, conventions.views)
+    
+    // Load workers
+    await this.loadWorkersFromConvention(rootDir, conventions.workers)
+    
+    // Load WebSocket configuration
+    await this.loadWebSocketFromConvention(rootDir, conventions.websocket)
+  }
+
+  /**
+   * Auto-discovers and loads actions from common directory patterns
+   */
+  private async loadActionsFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const actionsDir = join(rootDir, pattern)
+      if (await exists(actionsDir)) {
+        this.logging.info(`Found actions directory: ${pattern}`)
+        
+        try {
+          const actions = await this.discoverActions(actionsDir)
+          this.addActions(actions)
+          this.logging.info(`Loaded ${actions.length} actions from ${pattern}`)
+          return // Found and loaded, no need to check other patterns
+        } catch (error) {
+          this.logging.warn(`Failed to load actions from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No actions directory found, skipping action loading')
+  }
+
+  /**
+   * Auto-discovers and loads pipes from common directory patterns
+   */
+  private async loadPipesFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const pipesDir = join(rootDir, pattern)
+      if (await exists(pipesDir)) {
+        this.logging.info(`Found pipes directory: ${pattern}`)
+        
+        try {
+          const pipes = await this.discoverPipes(pipesDir)
+          this.pipes.push(...pipes)
+          this.logging.info(`Loaded ${pipes.length} pipes from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load pipes from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No pipes directory found, skipping pipe loading')
+  }
+
+  /**
+   * Auto-discovers and loads services from common directory patterns
+   */
+  private async loadServicesFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const servicesDir = join(rootDir, pattern)
+      if (await exists(servicesDir)) {
+        this.logging.info(`Found services directory: ${pattern}`)
+        
+        try {
+          const services = await this.discoverServices(servicesDir)
+          for (const service of services) {
+            this.services.set(service.name, service.instance)
+          }
+          this.logging.info(`Loaded ${services.length} services from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load services from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No services directory found, skipping service loading')
+  }
+
+  /**
+   * Auto-discovers and loads views from common directory patterns
+   */
+  private async loadViewsFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const viewsDir = join(rootDir, pattern)
+      if (await exists(viewsDir)) {
+        this.logging.info(`Found views directory: ${pattern}`)
+        
+        try {
+          this.edge.mount(viewsDir)
+          this.logging.info(`Mounted views from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to mount views from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No views directory found, skipping view loading')
+  }
+
+  /**
+   * Auto-discovers and loads workers from common directory patterns
+   */
+  private async loadWorkersFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const workersDir = join(rootDir, pattern)
+      if (await exists(workersDir)) {
+        this.logging.info(`Found workers directory: ${pattern}`)
+        
+        try {
+          const workers = await this.discoverWorkers(workersDir)
+          for (const [name, scriptPath] of workers) {
+            this.createWorker(name, scriptPath)
+          }
+          this.logging.info(`Loaded ${workers.size} workers from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load workers from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No workers directory found, skipping worker loading')
+  }
+
+  /**
+   * Auto-discovers and loads WebSocket configuration from common directory patterns
+   */
+  private async loadWebSocketFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const wsDir = join(rootDir, pattern)
+      if (await exists(wsDir)) {
+        this.logging.info(`Found WebSocket directory: ${pattern}`)
+        
+        try {
+          const wsConfig = await this.discoverWebSocketConfig(wsDir)
+          if (wsConfig) {
+            this.websocket = wsConfig
+            this.logging.info(`Loaded WebSocket configuration from ${pattern}`)
+          }
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load WebSocket config from ${pattern}:`, error)
+        }
+      }
+    }
+    
+    this.logging.info('No WebSocket directory found, skipping WebSocket loading')
+  }
+
+  /**
+   * Discovers action files and loads them
+   */
+  private async discoverActions(actionsDir: string): Promise<any[]> {
+    const actions: any[] = []
+    const files = await fs.readdir(actionsDir, { withFileTypes: true })
+    
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const actionPath = join(actionsDir, file.name)
+          const actionModule = await import(actionPath)
+          
+          // Handle different export patterns
+          if (actionModule.default) {
+            if (Array.isArray(actionModule.default)) {
+              actions.push(...actionModule.default)
+            } else {
+              actions.push(actionModule.default)
+            }
+          } else if (actionModule.actions) {
+            actions.push(...actionModule.actions)
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load action from ${file.name}:`, error)
+        }
+      }
+    }
+    
+    return actions
+  }
+
+  /**
+   * Discovers pipe files and loads them
+   */
+  private async discoverPipes(pipesDir: string): Promise<any[]> {
+    const pipes: any[] = []
+    const files = await fs.readdir(pipesDir, { withFileTypes: true })
+    
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const pipePath = join(pipesDir, file.name)
+          const pipeModule = await import(pipePath)
+          
+          if (pipeModule.default) {
+            if (Array.isArray(pipeModule.default)) {
+              pipes.push(...pipeModule.default)
+            } else {
+              pipes.push(pipeModule.default)
+            }
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load pipe from ${file.name}:`, error)
+        }
+      }
+    }
+    
+    return pipes
+  }
+
+  /**
+   * Discovers service files and loads them
+   */
+  private async discoverServices(servicesDir: string): Promise<any[]> {
+    const services: any[] = []
+    const files = await fs.readdir(servicesDir, { withFileTypes: true })
+    
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const servicePath = join(servicesDir, file.name)
+          const serviceModule = await import(servicePath)
+          
+          if (serviceModule.default) {
+            const serviceName = file.name.replace(/\.(ts|js)$/, '')
+            services.push({
+              name: serviceName,
+              instance: serviceModule.default
+            })
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load service from ${file.name}:`, error)
+        }
+      }
+    }
+    
+    return services
+  }
+
+  /**
+   * Discovers worker files and loads them
+   */
+  private async discoverWorkers(workersDir: string): Promise<Map<string, string>> {
+    const workers = new Map<string, string>()
+    const files = await fs.readdir(workersDir, { withFileTypes: true })
+    
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        const workerName = file.name.replace(/\.(ts|js)$/, '')
+        const workerPath = join(workersDir, file.name)
+        workers.set(workerName, workerPath)
+      }
+    }
+    
+    return workers
+  }
+
+  /**
+   * Discovers WebSocket configuration
+   */
+  private async discoverWebSocketConfig(wsDir: string): Promise<EngineWebSocketConfig | null> {
+    const configFile = join(wsDir, 'config.ts')
+    if (await exists(configFile)) {
+      try {
+        const configModule = await import(configFile)
+        return configModule.default || configModule.config
+      } catch (error) {
+        this.logging.warn(`Failed to load WebSocket config:`, error)
+      }
+    }
+    
+    // Try to auto-discover WebSocket actions
+    const actions = await this.discoverActions(wsDir)
+    if (actions.length > 0) {
+      return {
+        actions,
+        pipes: []
+      }
+    }
+    
+    return null
   }
 
   /**
@@ -522,6 +846,75 @@ export class Engine {
     } else {
       this.extensions.add(extension)
     }
+  }
+
+  /**
+   * Creates and registers a new worker
+   */
+  createWorker(name: string, scriptPath: string, options?: any): any {
+    if (this.workers.has(name)) {
+      this.logging.warn(`Worker '${name}' already exists, terminating existing worker`)
+      this.terminateWorker(name)
+    }
+
+    const worker = new Worker(scriptPath, options)
+    this.workers.set(name, worker)
+    
+    worker.onerror = (error) => {
+      this.logging.error(`Worker '${name}' error:`, error)
+    }
+    
+    worker.onmessage = (message) => {
+      this.logging.debug(`Worker '${name}' message:`, message.data)
+    }
+    
+    this.logging.info(`Worker '${name}' created successfully`)
+    return worker
+  }
+
+  /**
+   * Terminates a specific worker
+   */
+  terminateWorker(name: string): boolean {
+    const worker = this.workers.get(name)
+    if (worker) {
+      worker.terminate()
+      this.workers.delete(name)
+      this.logging.info(`Worker '${name}' terminated`)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Terminates all workers
+   */
+  terminateAllWorkers(): void {
+    for (const [name, worker] of this.workers) {
+      worker.terminate()
+      this.logging.info(`Worker '${name}' terminated`)
+    }
+    this.workers.clear()
+  }
+
+  /**
+   * Gets a worker by name
+   */
+  getWorker(name: string): any {
+    return this.workers.get(name)
+  }
+
+  /**
+   * Sends a message to a specific worker
+   */
+  sendToWorker(name: string, message: any): boolean {
+    const worker = this.workers.get(name)
+    if (worker) {
+      worker.postMessage(message)
+      return true
+    }
+    this.logging.warn(`Worker '${name}' not found`)
+    return false
   }
 }
 

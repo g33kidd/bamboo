@@ -4,6 +4,25 @@ This document compiles all TODOs, NOTES, and unfinished/incomplete sections foun
 
 ---
 
+## ✅ COMPLETED IMPLEMENTATIONS
+
+### `bamboo/src/core/logging.ts`
+- **✅ COMPLETED:** Enhanced logging system with log levels, timestamps, and multiple adapters
+- **✅ COMPLETED:** Console, JSON, File, and Silent adapters implemented
+- **✅ COMPLETED:** Error handling and fallback mechanisms
+- **✅ COMPLETED:** Migration guide and documentation
+
+### `bamboo/src/engine/index.ts`
+- **✅ COMPLETED:** Worker thread management system
+- **✅ COMPLETED:** Worker creation, termination, and messaging APIs
+- **✅ COMPLETED:** Integration with logging system
+- **✅ COMPLETED:** Convention over configuration system
+- **✅ COMPLETED:** Auto-discovery of actions, pipes, services, workers, views, and WebSocket
+- **✅ COMPLETED:** Multiple directory pattern support (actions/, src/actions/, app/actions/, etc.)
+- **✅ COMPLETED:** Flexible export pattern support
+
+---
+
 ## General TODOs, NOTES, and Unfinished Sections
 
 ### `bamboo/src/storage/index.ts`
@@ -43,15 +62,6 @@ This document compiles all TODOs, NOTES, and unfinished/incomplete sections foun
 - **TODO:** Create a base class based on this implementation of the cache, then create other adapters.
 - **TODO:** Add this path resolution somewhere else. (in `loadFromCacheFile` and `saveCacheFile`)
 
-### `bamboo/src/engine/index.ts`
-- **TODO:** This still needs some work in order to properly load the actions. (in `configure`)
-- **TODO:** Load configuration from these directories, import them and utilize them during Engine setup.
-- **TODO:** Figure out a suitable folder structure for Bamboo.
-- **TODO:** Don't run anything if the response is locked. This requires an explicit call to lock(). (in `serve` websocket message handler)
-- **TODO:** Finish rooms implementation. (in `handleWebSocketAction`)
-- **TODO:** Finish this, include the timestamp of the first request & most recent request to determine if the limit should be reset, keep counting, or deny requests. (in `ratelimit`)
-- **TODO:** There should be rate cache adapter that handles different types of storage for rate limits.
-
 ### `bamboo/src/devserver.ts`
 - **TODO:** Finish the devserver implementation.
 - **Unfinished:** The `fetch` and `message` handlers throw "Function not implemented."
@@ -75,11 +85,7 @@ This document compiles all TODOs, NOTES, and unfinished/incomplete sections foun
 ### `bamboo/src/endpoint/BaseEndpoint.ts`
 - **TODO:** Engine logging (in `debug`)
 
-### `bamboo/src/core/logging.ts`
-- **TODO:** Support more adapters.
-
 ### `bamboo/src/actions/registry.ts`
-- **TODO:** This should be moved into core/ as well.
 
 ---
 
@@ -99,6 +105,15 @@ This document compiles all TODOs, NOTES, and unfinished/incomplete sections foun
   - `devserver.ts` is explicitly marked as a work in progress.
   - Several TODOs in `engine/index.ts` and `extensions/ratelimit.ts` indicate planned but incomplete features (e.g., adapters, room support, configuration loading, etc.).
 
+### `bamboo/src/engine/index.ts`
+- **TODO:** This still needs some work in order to properly load the actions. (in `configure`)
+- **TODO:** Load configuration from these directories, import them and utilize them during Engine setup.
+- **TODO:** Figure out a suitable folder structure for Bamboo.
+- **TODO:** Don't run anything if the response is locked. This requires an explicit call to lock(). (in `serve` websocket message handler)
+- **TODO:** Finish rooms implementation. (in `handleWebSocketAction`)
+- **TODO:** Finish this, include the timestamp of the first request & most recent request to determine if the limit should be reset, keep counting, or deny requests. (in `ratelimit`)
+- **TODO:** There should be rate cache adapter that handles different types of storage for rate limits.
+
 ---
 
-If you want a more detailed breakdown for any specific file or want to see the actual code snippets for each TODO/unfinished section, let me know! 
+If you want a more detailed breakdown for any specific file or want to see the actual code snippets for each TODO/unfinished section, let me know!

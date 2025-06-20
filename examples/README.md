@@ -1,6 +1,104 @@
 # Bamboo Examples
 
-This directory contains examples demonstrating Bamboo's key features and capabilities.
+This directory contains practical examples of how to use Bamboo features.
+
+## Worker Examples
+
+### Post Creation with Image Processing
+
+The `post-creation-with-workers.ts` example demonstrates how to use workers for background image processing when creating posts.
+
+#### How it works:
+
+1. **Fast Response**: User creates a post and gets immediate response
+2. **Background Processing**: Image is processed in a separate worker thread
+3. **Status Updates**: Post status is updated when processing completes
+4. **Error Handling**: Failed processing is handled gracefully
+
+#### Benefits:
+
+- **Better UX**: Users don't wait for image processing
+- **Scalability**: Multiple images can be processed simultaneously
+- **Reliability**: Worker crashes don't affect main application
+- **Performance**: Main thread stays responsive
+
+#### Usage:
+
+```typescript
+// Create a post with image
+const response = await fetch('/posts/create', {
+  method: 'POST',
+  body: JSON.stringify({
+    text: 'My awesome post!',
+    image: 'base64-image-data',
+    userId: 'user123'
+  })
+})
+
+// Immediate response
+const result = await response.json()
+// {
+//   post: { id: 'post_123', text: 'My awesome post!', status: 'processing' },
+//   message: 'Post created! Image is being processed in the background.',
+//   status: 'processing'
+// }
+```
+
+#### Worker Script:
+
+The `workers/image-processor.ts` script handles:
+- Image resizing for different formats (thumbnail, preview, full)
+- Format conversion (WebP, AVIF)
+- Compression optimization
+- Storage upload
+
+#### Real Implementation:
+
+To use this in production:
+
+1. **Install Sharp**: `bun add sharp`
+2. **Configure Storage**: Set up S3, Cloudinary, or similar
+3. **Add Error Handling**: Implement retry logic and monitoring
+4. **Add Monitoring**: Track processing times and failures
+
+#### Example Worker with Sharp:
+
+```typescript
+import sharp from 'sharp'
+
+async function processImage(imageData: string, postId: string) {
+  const buffer = Buffer.from(imageData, 'base64')
+  
+  // Create different sizes
+  const thumbnail = await sharp(buffer)
+    .resize(150, 150, { fit: 'cover' })
+    .webp({ quality: 80 })
+    .toBuffer()
+    
+  const preview = await sharp(buffer)
+    .resize(400, 400, { fit: 'cover' })
+    .webp({ quality: 85 })
+    .toBuffer()
+    
+  const full = await sharp(buffer)
+    .resize(1200, 1200, { fit: 'inside' })
+    .webp({ quality: 90 })
+    .toBuffer()
+    
+  // Upload to storage and return URLs
+  return {
+    thumbnail: await uploadToStorage(thumbnail, `${postId}/thumbnail.webp`),
+    preview: await uploadToStorage(preview, `${postId}/preview.webp`),
+    full: await uploadToStorage(full, `${postId}/full.webp`)
+  }
+}
+```
+
+## Other Examples
+
+- `worker-example.ts` - Basic worker usage patterns
+- `websocket-api.ts` - WebSocket API implementation
+- `rest-api.ts` - REST API patterns
 
 ## Quick Start
 
