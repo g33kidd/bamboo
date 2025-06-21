@@ -221,11 +221,11 @@ export default class Endpoint extends BaseEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  ratelimit(
+  async ratelimit(
     context: string,
     limit: number = 60,
     interval: number = 1000 * 60,
-  ): boolean {
+  ): Promise<boolean> {
     return engine.ratelimit(context, limit, interval)
   }
 
@@ -235,7 +235,7 @@ export default class Endpoint extends BaseEndpoint {
    * @param context The rate limit context
    * @returns Rate limit information including remaining requests and reset time
    */
-  getRateLimitInfo(context: string) {
+  async getRateLimitInfo(context: string) {
     return engine.getRateLimitInfo(context)
   }
 

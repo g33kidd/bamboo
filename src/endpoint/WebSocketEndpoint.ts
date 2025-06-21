@@ -261,11 +261,11 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  ratelimit(
+  async ratelimit(
     context: string,
     limit: number = 60,
     forIP: boolean = false,
-  ): boolean {
+  ): Promise<boolean> {
     // TODO: Confirm that this IP address isn't blacklisted or anything.
     if (forIP) {
       const ip = this.ws.remoteAddress.toString()
@@ -283,7 +283,7 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    * @param forIP Whether to include IP in the context
    * @returns Rate limit information including remaining requests and reset time
    */
-  getRateLimitInfo(context: string, forIP: boolean = false) {
+  async getRateLimitInfo(context: string, forIP: boolean = false) {
     if (forIP) {
       const ip = this.ws.remoteAddress.toString()
       const ipHash = Buffer.from(ip).toString('base64')

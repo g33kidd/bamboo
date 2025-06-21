@@ -609,11 +609,9 @@ export class Engine {
     if (typeof this.server === 'undefined') {
       // Start periodic cleanup of rate limit cache to prevent memory leaks
       if (this.limiterCache) {
-        setInterval(() => {
-          this.limiterCache?.cleanup()
-          this.logging.debug('Rate limit cache cleanup completed', {
-            remainingEntries: this.limiterCache?.storage.size || 0
-          })
+        setInterval(async () => {
+          await this.limiterCache?.cleanup()
+          this.logging.debug('Rate limit cache cleanup completed')
         }, 5 * 60 * 1000) // Clean up every 5 minutes
       }
 
@@ -796,11 +794,11 @@ export class Engine {
    * @param interval Interval in milliseconds (default: 1 minute)
    * @returns true if rate limit is exceeded, false otherwise
    */
-  ratelimit(
+  async ratelimit(
     context: string,
     limit: number = 60,
     interval: number = 1000 * 60,
-  ): boolean {
+  ): Promise<boolean> {
     const limiterContext = context.split('/')[0] // removes the IP hash from the context.
     const limiter = this.limiters.get(limiterContext)
 
@@ -815,7 +813,7 @@ export class Engine {
     }
 
     // Track the request with proper interval handling
-    const limitRecord = this.limiterCache.track(context, interval)
+    const limitRecord = await this.limiterCache.track(context, interval)
 
     // Check if rate limit is exceeded
     const isExceeded = limitRecord.current > limit
@@ -853,7 +851,7 @@ export class Engine {
    * @param context The rate limit context
    * @returns Rate limit information including remaining requests and reset time
    */
-  getRateLimitInfo(context: string) {
+  async getRateLimitInfo(context: string) {
     if (!this.limiterCache) {
       return null
     }
@@ -865,8 +863,8 @@ export class Engine {
       return null
     }
 
-    const remaining = this.limiterCache.getRemaining(context, limiter.amount)
-    const resetTime = this.limiterCache.getResetTime(context)
+    const remaining = await this.limiterCache.getRemaining(context, limiter.amount)
+    const resetTime = await this.limiterCache.getResetTime(context)
 
     return {
       context,
