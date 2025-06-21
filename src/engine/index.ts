@@ -227,7 +227,7 @@ export class Engine {
       }
     } else {
       this.logging.info('No EngineConfig provided, using convention over configuration')
-      
+
       // Convention over configuration - auto-discover from common directory structures
       await this.loadConventionBasedConfiguration()
     }
@@ -241,7 +241,7 @@ export class Engine {
    */
   private async loadConventionBasedConfiguration() {
     const rootDir = cwd()
-    
+
     // Common directory patterns to check
     const conventions = {
       actions: ['actions', 'src/actions', 'app/actions', 'routes'],
@@ -256,19 +256,19 @@ export class Engine {
 
     // Load actions
     await this.loadActionsFromConvention(rootDir, conventions.actions)
-    
+
     // Load pipes
     await this.loadPipesFromConvention(rootDir, conventions.pipes)
-    
+
     // Load services
     await this.loadServicesFromConvention(rootDir, conventions.services)
-    
+
     // Load views
     await this.loadViewsFromConvention(rootDir, conventions.views)
-    
+
     // Load workers
     await this.loadWorkersFromConvention(rootDir, conventions.workers)
-    
+
     // Load WebSocket configuration
     await this.loadWebSocketFromConvention(rootDir, conventions.websocket)
   }
@@ -281,7 +281,7 @@ export class Engine {
       const actionsDir = join(rootDir, pattern)
       if (await exists(actionsDir)) {
         this.logging.info(`Found actions directory: ${pattern}`)
-        
+
         try {
           const actions = await this.discoverActions(actionsDir)
           this.addActions(actions)
@@ -292,7 +292,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No actions directory found, skipping action loading')
   }
 
@@ -304,7 +304,7 @@ export class Engine {
       const pipesDir = join(rootDir, pattern)
       if (await exists(pipesDir)) {
         this.logging.info(`Found pipes directory: ${pattern}`)
-        
+
         try {
           const pipes = await this.discoverPipes(pipesDir)
           this.pipes.push(...pipes)
@@ -315,7 +315,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No pipes directory found, skipping pipe loading')
   }
 
@@ -327,7 +327,7 @@ export class Engine {
       const servicesDir = join(rootDir, pattern)
       if (await exists(servicesDir)) {
         this.logging.info(`Found services directory: ${pattern}`)
-        
+
         try {
           const services = await this.discoverServices(servicesDir)
           for (const service of services) {
@@ -340,7 +340,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No services directory found, skipping service loading')
   }
 
@@ -352,7 +352,7 @@ export class Engine {
       const viewsDir = join(rootDir, pattern)
       if (await exists(viewsDir)) {
         this.logging.info(`Found views directory: ${pattern}`)
-        
+
         try {
           this.edge.mount(viewsDir)
           this.logging.info(`Mounted views from ${pattern}`)
@@ -362,7 +362,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No views directory found, skipping view loading')
   }
 
@@ -374,7 +374,7 @@ export class Engine {
       const workersDir = join(rootDir, pattern)
       if (await exists(workersDir)) {
         this.logging.info(`Found workers directory: ${pattern}`)
-        
+
         try {
           const workers = await this.discoverWorkers(workersDir)
           for (const [name, scriptPath] of workers) {
@@ -387,7 +387,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No workers directory found, skipping worker loading')
   }
 
@@ -399,7 +399,7 @@ export class Engine {
       const wsDir = join(rootDir, pattern)
       if (await exists(wsDir)) {
         this.logging.info(`Found WebSocket directory: ${pattern}`)
-        
+
         try {
           const wsConfig = await this.discoverWebSocketConfig(wsDir)
           if (wsConfig) {
@@ -412,7 +412,7 @@ export class Engine {
         }
       }
     }
-    
+
     this.logging.info('No WebSocket directory found, skipping WebSocket loading')
   }
 
@@ -422,13 +422,13 @@ export class Engine {
   private async discoverActions(actionsDir: string): Promise<any[]> {
     const actions: any[] = []
     const files = await fs.readdir(actionsDir, { withFileTypes: true })
-    
+
     for (const file of files) {
       if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
         try {
           const actionPath = join(actionsDir, file.name)
           const actionModule = await import(actionPath)
-          
+
           // Handle different export patterns
           if (actionModule.default) {
             if (Array.isArray(actionModule.default)) {
@@ -444,7 +444,7 @@ export class Engine {
         }
       }
     }
-    
+
     return actions
   }
 
@@ -454,13 +454,13 @@ export class Engine {
   private async discoverPipes(pipesDir: string): Promise<any[]> {
     const pipes: any[] = []
     const files = await fs.readdir(pipesDir, { withFileTypes: true })
-    
+
     for (const file of files) {
       if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
         try {
           const pipePath = join(pipesDir, file.name)
           const pipeModule = await import(pipePath)
-          
+
           if (pipeModule.default) {
             if (Array.isArray(pipeModule.default)) {
               pipes.push(...pipeModule.default)
@@ -473,7 +473,7 @@ export class Engine {
         }
       }
     }
-    
+
     return pipes
   }
 
@@ -483,13 +483,13 @@ export class Engine {
   private async discoverServices(servicesDir: string): Promise<any[]> {
     const services: any[] = []
     const files = await fs.readdir(servicesDir, { withFileTypes: true })
-    
+
     for (const file of files) {
       if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
         try {
           const servicePath = join(servicesDir, file.name)
           const serviceModule = await import(servicePath)
-          
+
           if (serviceModule.default) {
             const serviceName = file.name.replace(/\.(ts|js)$/, '')
             services.push({
@@ -502,7 +502,7 @@ export class Engine {
         }
       }
     }
-    
+
     return services
   }
 
@@ -512,7 +512,7 @@ export class Engine {
   private async discoverWorkers(workersDir: string): Promise<Map<string, string>> {
     const workers = new Map<string, string>()
     const files = await fs.readdir(workersDir, { withFileTypes: true })
-    
+
     for (const file of files) {
       if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
         const workerName = file.name.replace(/\.(ts|js)$/, '')
@@ -520,7 +520,7 @@ export class Engine {
         workers.set(workerName, workerPath)
       }
     }
-    
+
     return workers
   }
 
@@ -537,7 +537,7 @@ export class Engine {
         this.logging.warn(`Failed to load WebSocket config:`, error)
       }
     }
-    
+
     // Try to auto-discover WebSocket actions
     const actions = await this.discoverActions(wsDir)
     if (actions.length > 0) {
@@ -546,7 +546,7 @@ export class Engine {
         pipes: []
       }
     }
-    
+
     return null
   }
 
@@ -607,6 +607,16 @@ export class Engine {
     const engine = this
 
     if (typeof this.server === 'undefined') {
+      // Start periodic cleanup of rate limit cache to prevent memory leaks
+      if (this.limiterCache) {
+        setInterval(() => {
+          this.limiterCache?.cleanup()
+          this.logging.debug('Rate limit cache cleanup completed', {
+            remainingEntries: this.limiterCache?.storage.size || 0
+          })
+        }, 5 * 60 * 1000) // Clean up every 5 minutes
+      }
+
       this.server = Bun.serve({
         hostname: process.env.HOSTNAME || '0.0.0.0',
         port: Number(process.env.PORT) || 3000,
@@ -781,10 +791,10 @@ export class Engine {
   /**
    * Checks if a context's ratelimit has been exceeded.
    *
-   * TODO: Finish this, include the timestamp of the first request & most recent request to determine
-   * if the limit should be reset, keep counting, or deny requests.
-   *
-   * Ideally there should be a layer before the connection to this server that handles this too.
+   * @param context The rate limit context (e.g., 'api:requests', 'chat:messages')
+   * @param limit Number of requests allowed within the interval
+   * @param interval Interval in milliseconds (default: 1 minute)
+   * @returns true if rate limit is exceeded, false otherwise
    */
   ratelimit(
     context: string,
@@ -795,16 +805,32 @@ export class Engine {
     const limiter = this.limiters.get(limiterContext)
 
     // Create a limiter if there is none specified at Engine start.
-    if (!limiter) this.limiter(limiterContext, limit, interval)
+    if (!limiter) {
+      this.limiter(limiterContext, limit, interval)
+    }
 
-    // TODO: There should be rate cache adapter that handles different types of storage for rate limits.
-    // One might want to use file, json, database, redis, etc...
+    // Initialize rate limit cache if not exists
     if (!this.limiterCache) {
       this.limiterCache = new RateLimitCache()
     }
 
-    const limitRecord = this.limiterCache.track(context)
-    return limitRecord.current <= limit
+    // Track the request with proper interval handling
+    const limitRecord = this.limiterCache.track(context, interval)
+
+    // Check if rate limit is exceeded
+    const isExceeded = limitRecord.current > limit
+
+    if (isExceeded) {
+      this.logging.warn('Rate limit exceeded', {
+        context,
+        current: limitRecord.current,
+        limit,
+        interval,
+        timeSinceFirst: Date.now() - limitRecord.timestamp,
+      })
+    }
+
+    return isExceeded
   }
 
   /**
@@ -819,6 +845,37 @@ export class Engine {
       amount: limit,
       perIntervalMs: interval,
     })
+  }
+
+  /**
+   * Gets rate limit information for a context
+   * 
+   * @param context The rate limit context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  getRateLimitInfo(context: string) {
+    if (!this.limiterCache) {
+      return null
+    }
+
+    const limiterContext = context.split('/')[0]
+    const limiter = this.limiters.get(limiterContext)
+
+    if (!limiter) {
+      return null
+    }
+
+    const remaining = this.limiterCache.getRemaining(context, limiter.amount)
+    const resetTime = this.limiterCache.getResetTime(context)
+
+    return {
+      context,
+      limit: limiter.amount,
+      interval: limiter.perIntervalMs,
+      remaining,
+      resetTime,
+      resetTimeSeconds: Math.ceil(resetTime / 1000)
+    }
   }
 
   /**
@@ -859,15 +916,15 @@ export class Engine {
 
     const worker = new Worker(scriptPath, options)
     this.workers.set(name, worker)
-    
+
     worker.onerror = (error) => {
       this.logging.error(`Worker '${name}' error:`, error)
     }
-    
+
     worker.onmessage = (message) => {
       this.logging.debug(`Worker '${name}' message:`, message.data)
     }
-    
+
     this.logging.info(`Worker '${name}' created successfully`)
     return worker
   }

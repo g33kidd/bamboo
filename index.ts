@@ -20,6 +20,9 @@ import devhub from './src/extensions/devhub'
 import { json } from './src/helpers/response'
 import Bamboo from './src/bamboo'
 
+// Encryption module
+import { Encryption, sign, verify, random, token, hash, hmac, uuid } from './src/core/encryption'
+
 export default Bamboo
 
 export {
@@ -59,4 +62,14 @@ export {
 
   // Built-in Extensions
   devhub,
+
+  // Encryption Module
+  Encryption,
+  sign,
+  verify,
+  random,
+  token,
+  hash,
+  hmac,
+  uuid,
 }

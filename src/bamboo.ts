@@ -1,5 +1,6 @@
 import { join } from 'path'
 import * as ncrypto from 'node:crypto'
+import { Encryption } from './core/encryption'
 
 export default class Bamboo {
   /**
@@ -9,7 +10,7 @@ export default class Bamboo {
     const hmac = ncrypto.createHmac('sha512', 'secret')
   }
 
-  static verify(ctx: string, data: string, lifetime?: number) {}
+  static verify(ctx: string, data: string, lifetime?: number) { }
 
   /**
    * Generates a random value with base64 encoding.
@@ -30,4 +31,11 @@ export default class Bamboo {
     buffer.write(Date.now().toString(), 8)
     return buffer.toString(encoding)
   }
+
+  // Encryption module
+  static encryption = Encryption
 }
+
+// Export encryption functions for convenience
+export { Encryption } from './core/encryption'
+export { sign, verify, random, token, hash, hmac, uuid } from './core/encryption'

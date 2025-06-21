@@ -28,6 +28,7 @@ type RateLimitLog = {
   current: number
   attemptsOver?: number
   timestamp: number
+  interval: number
   // TODO: Implement metadata
   // metadata?: Map<any, any>
 }
@@ -45,25 +46,34 @@ export default class RateLimitCache {
   }
 
   /**
-   * Keeps track of a ratelimit for a specific context.
+   * Keeps track of a ratelimit for a specific context with proper time-based intervals.
    */
-  track(context: string): RateLimitLog {
-    const timestamp = Date.now()
-    let tracking = { current: 0, timestamp }
-    let currentAmount = 0
+  track(context: string, interval: number = 60000): RateLimitLog {
+    const now = Date.now()
+
     if (!this.storage.has(context)) {
-      tracking = { current: 0, timestamp }
+      // First request for this context
+      const tracking = { current: 1, timestamp: now, interval }
       this.storage.set(context, tracking)
-    } else {
-      const current = this.storage.get(context)
-      if (current) {
-        currentAmount = current.current + 1
-        tracking = { current: currentAmount, timestamp }
-        this.storage.set(context, tracking)
-      }
+      return tracking
     }
 
-    return tracking
+    const current = this.storage.get(context)!
+    const timeSinceFirst = now - current.timestamp
+
+    // Check if we're still within the interval
+    if (timeSinceFirst < interval) {
+      // Within interval, increment counter
+      current.current++
+      current.timestamp = now // Update timestamp to most recent request
+      this.storage.set(context, current)
+      return current
+    } else {
+      // Interval has passed, reset the counter
+      const tracking = { current: 1, timestamp: now, interval }
+      this.storage.set(context, tracking)
+      return tracking
+    }
   }
 
   /**
@@ -74,8 +84,48 @@ export default class RateLimitCache {
       this.storage.set(context, {
         current: 0,
         timestamp: 0,
+        interval: 60000,
       })
     }
+  }
+
+  /**
+   * Cleans up expired rate limit entries to prevent memory leaks
+   */
+  cleanup() {
+    const now = Date.now()
+    for (const [key, record] of this.storage.entries()) {
+      if (now - record.timestamp > record.interval) {
+        this.storage.delete(key)
+      }
+    }
+  }
+
+  /**
+   * Gets the remaining requests allowed for a context
+   */
+  getRemaining(context: string, limit: number): number {
+    const record = this.storage.get(context)
+    if (!record) return limit
+
+    const now = Date.now()
+    if (now - record.timestamp > record.interval) {
+      return limit
+    }
+
+    return Math.max(0, limit - record.current)
+  }
+
+  /**
+   * Gets the time until the rate limit resets for a context
+   */
+  getResetTime(context: string): number {
+    const record = this.storage.get(context)
+    if (!record) return 0
+
+    const now = Date.now()
+    const timeSinceFirst = now - record.timestamp
+    return Math.max(0, record.interval - timeSinceFirst)
   }
 
   /**

@@ -217,4 +217,32 @@ export default class Endpoint extends BaseEndpoint {
 
     return this
   }
+
+  /**
+   * Returns true if the ratelimit has exceeded, returns false otherwise.
+   */
+  ratelimit(
+    context: string,
+    limit: number = 60,
+    interval: number = 1000 * 60,
+  ): boolean {
+    return engine.ratelimit(context, limit, interval)
+  }
+
+  /**
+   * Gets rate limit information for the current context
+   * 
+   * @param context The rate limit context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  getRateLimitInfo(context: string) {
+    return engine.getRateLimitInfo(context)
+  }
+
+  /**
+   * Gets the request body as JSON
+   */
+  get body() {
+    return this.params
+  }
 }

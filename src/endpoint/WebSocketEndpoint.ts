@@ -1,6 +1,8 @@
 import { ServerWebSocket } from 'bun'
 import { engine } from '../..'
 import BaseEndpoint from './BaseEndpoint'
+import Bamboo from '../bamboo'
+import { sign, verify } from '../core/encryption'
 
 // sent events through using WebSocketEndpoint.pub or sendEvent
 export type EventContainer = {
@@ -173,13 +175,60 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    *
    * Shuffles the websocket token that the connection originally started with.
    * Useful for invalidating the original token and using a token that the user cannot see.
+   * 
+   * @param useSignedToken - If true, creates a signed token that can be verified later
+   * @returns The new token, or null if shuffling failed
    */
-  // shuffleToken() {
-  //   if (this.getToken()) {
-  //     // Replace the token with a new token.
+  async shuffleToken(useSignedToken: boolean = false): Promise<string | null> {
+    const currentToken = this.getToken()
+    if (!currentToken) {
+      return null
+    }
 
-  //   }
-  // }
+    try {
+      // Generate a new secure token
+      const newToken = Bamboo.randomValue('base64')
+
+      // Store the new token in the WebSocket data
+      this.push('token', newToken)
+
+      // Store the original token for reference (useful for cleanup)
+      this.push('originalToken', currentToken)
+
+      // If using signed tokens, create a signed version
+      if (useSignedToken) {
+        const signedToken = await sign('websocket:token', newToken)
+        this.push('signedToken', signedToken)
+        return signedToken
+      }
+
+      return newToken
+    } catch (error) {
+      engine.logging.error('Failed to shuffle WebSocket token', { error })
+      return null
+    }
+  }
+
+  /**
+   * Verifies if the current token is valid (if using signed tokens)
+   * @param expectedContext - The expected context for the token
+   * @returns True if token is valid, false otherwise
+   */
+  async verifyToken(expectedContext: string = 'websocket:token'): Promise<boolean> {
+    const signedToken = this.get('signedToken')
+    if (!signedToken) {
+      // If no signed token, just check if we have any token
+      return !!this.getToken()
+    }
+
+    try {
+      const result = await verify(expectedContext, signedToken)
+      return result ? result.valid : false
+    } catch (error) {
+      engine.logging.error('Failed to verify WebSocket token', { error })
+      return false
+    }
+  }
 
   /**
    * Converts the received string message into an object.
@@ -224,6 +273,23 @@ export default class WebSocketEndpoint extends BaseEndpoint {
       return engine.ratelimit(`${context}/${ipHash}`, limit)
     } else {
       return engine.ratelimit(context, limit)
+    }
+  }
+
+  /**
+   * Gets rate limit information for the current context
+   * 
+   * @param context The rate limit context
+   * @param forIP Whether to include IP in the context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  getRateLimitInfo(context: string, forIP: boolean = false) {
+    if (forIP) {
+      const ip = this.ws.remoteAddress.toString()
+      const ipHash = Buffer.from(ip).toString('base64')
+      return engine.getRateLimitInfo(`${context}/${ipHash}`)
+    } else {
+      return engine.getRateLimitInfo(context)
     }
   }
 
