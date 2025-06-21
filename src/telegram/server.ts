@@ -1,5 +1,6 @@
 import { Socket, TCPSocketListener } from 'bun'
 import { Machine, Message } from './types'
+import { engine } from '../..'
 
 export default class TelegramServer {
   clients: Set<Socket<Machine>> = new Set()
@@ -11,7 +12,7 @@ export default class TelegramServer {
     silent: boolean = false,
   ) {
     // TODO: Create an optional logging component to be added to this.
-    // console.log(`🗞️ started telegram listener on ${hostname}:${port}...`)
+    // engine.logging.info(`🗞️ started telegram listener on ${hostname}:${port}...`)
     this.silent = silent
     this.listen(hostname, port)
   }
@@ -24,13 +25,13 @@ export default class TelegramServer {
       socket: {
         open(socket) {
           if (!server.silent)
-            console.log('Client 🗞️ connected from', socket.remoteAddress)
+            engine.logging.info('Client 🗞️ connected from', { remoteAddress: socket.remoteAddress })
         },
         close(socket) {
           server.clients.delete(socket)
         },
         error(socket, error) {
-          if (!server.silent) console.error('Telegram error: ', error)
+          if (!server.silent) engine.logging.error('Telegram error', { error })
           if (server.clients.has(socket)) {
             server.clients.delete(socket)
           }
@@ -47,7 +48,7 @@ export default class TelegramServer {
                   socket.data = { id: payload.machineId }
                   server.clients.add(socket)
                   // TODO: Add optional logging client for this.
-                  // console.log(`clients now: ${server.clients.size} `)
+                  // engine.logging.debug(`clients now: ${server.clients.size}`)
                 } else {
                   const message: Message = payload
                   if (message) {
@@ -64,7 +65,7 @@ export default class TelegramServer {
                 }
               }
             } catch (e) {
-              console.error(e, buffer.toString())
+              engine.logging.error('Telegram data parsing error', { error: e, buffer: buffer.toString() })
             }
           }
         },

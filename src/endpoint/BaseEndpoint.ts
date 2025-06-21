@@ -66,14 +66,12 @@ export default class BaseEndpoint {
 
   /**
    * Debug w/ the amount of time it took to complete the request.
-   *
-   * TODO: Engine logging
    */
   debug(...data: any[]) {
     const time = this.time()
     const timeDisplay =
       time < 800 ? `${Math.round(time)}µs` : `${Math.round(time / 1000)}ms`
 
-    console.log(...data, `in ${timeDisplay}`)
+    engine.logging.debug(`Request completed`, { data, timeDisplay })
   }
 }

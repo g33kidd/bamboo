@@ -1,6 +1,7 @@
 import { Socket } from 'bun'
 import { randomBytes } from 'crypto'
 import { Machine, Message } from './types'
+import { engine } from '../..'
 
 export type TelegramClientOpts = {
   hostname: string
@@ -42,9 +43,9 @@ export default class TelegramClient {
     // NOTE: Or create a global message cache that just appends to the list then writes to the socket??
     const buf = Buffer.from(JSON.stringify(message) + '&b')
     if (this.socket?.write(buf.buffer)) {
-      // console.log('sent message')
+      // engine.logging.debug('Message sent successfully')
     } else {
-      console.error('message not sent', buf.toString())
+      engine.logging.error('Message not sent', { buffer: buf.toString() })
     }
   }
 
@@ -62,9 +63,9 @@ export default class TelegramClient {
       socket: {
         open(socket) {
           // TODO: Add optional logging component for this.
-          // console.log(
+          // engine.logging.info(
           //   '🗞️ connected to telegram server at:',
-          //   `${hostname}:${port}...`,
+          //   { hostname, port }
           // )
           client.socket = socket
           socket.write(
@@ -77,16 +78,15 @@ export default class TelegramClient {
         close(socket) {
           // TODO: Attempt to reconnect.
           // setTimeout(() => {
-          //   console.log('attempting to reconnect to telegram server...')
+          //   engine.logging.info('attempting to reconnect to telegram server...')
           //   client.connect(hostname, port)
           // }, 1000)
         },
         error(socket, error) {
-          console.log('Telegram client failed to connect')
-          // console.error(error)
+          engine.logging.error('Telegram client failed to connect', { error })
         },
         connectError(socket, error) {
-          console.log('Telegram client failed to connect')
+          engine.logging.error('Telegram client failed to connect', { error })
         },
         data(socket, data) {
           // TODO: This needs to be a readable stream.
@@ -100,7 +100,7 @@ export default class TelegramClient {
                 client.handler(payload, { id: message.machine })
                 // TODO: Handle the message.
               } catch (error) {
-                console.error(error)
+                engine.logging.error('Telegram client message parsing error', { error })
               }
             }
             socket.flush()
