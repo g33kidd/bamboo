@@ -23,6 +23,9 @@ import Bamboo from './src/bamboo'
 // Encryption module
 import { Encryption, sign, verify, random, token, hash, hmac, uuid } from './src/core/encryption'
 
+// DevServer
+import { devserver } from './src/devserver'
+
 export default Bamboo
 
 export {
@@ -62,6 +65,9 @@ export {
 
   // Built-in Extensions
   devhub,
+
+  // DevServer
+  devserver,
 
   // Encryption Module
   Encryption,

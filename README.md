@@ -19,7 +19,7 @@ Bamboo aims to be a "feature-rich" environment for both humans and artificial in
 - **HTTP & WebSocket Routing**
 - **Built-in Static Asset Handling** (with directory remapping)
 - **WebSockets with Per-Connection State**
-- **DevServer Utilities** *(WIP)*
+- **DevServer** - Multi-process development dashboard with real-time monitoring
 - **Background Services** *(WIP)*
 - **Distributed Messaging** *(WIP)*
 - **Extensions System** *(WIP)*
@@ -34,6 +34,70 @@ Bamboo aims to be a "feature-rich" environment for both humans and artificial in
 ## 🤖 AI-First Philosophy
 
 Bamboo is designed so that even an LLM can generate new features with minimal context. The goal is to make feature creation as simple and automated as possible, for both humans and AI.
+
+---
+
+## 🚀 DevServer - Multi-Process Development Dashboard
+
+Bamboo's DevServer provides a beautiful web dashboard for running and monitoring multiple development processes simultaneously. Perfect for full-stack development where you need to run API servers, frontend dev servers, database tools, and more.
+
+### Quick Start
+
+```typescript
+import { devserver } from 'bamboo'
+
+// Define your development processes
+const processes: [name: string, script: string][] = [
+  ['api', 'src/api.ts'],
+  ['frontend', 'bun run --hot src/frontend.ts'],
+  ['database', 'bunx prisma studio'],
+  ['watcher', 'bun run --watch src/watcher.ts'],
+]
+
+// Start the devserver
+devserver(processes)
+
+// Import and run (this starts the dashboard)
+import 'bamboo/src/devserver'
+```
+
+### Features
+
+- **Real-time Output**: See live output from all processes in separate panels
+- **Process Control**: Start, stop, and restart individual processes
+- **Beautiful UI**: Modern, responsive dashboard with dark theme
+- **WebSocket Communication**: Real-time updates without page refresh
+- **Graceful Shutdown**: Properly terminates all processes on exit
+
+### Dashboard
+
+Visit `http://localhost:1337` to access the dashboard. Each process gets its own card with:
+
+- Process name and status indicator
+- Real-time output stream
+- Control buttons (Restart, Stop, Clear)
+- Connection status indicator
+
+### Example Usage
+
+```typescript
+// devserver-example.ts
+#!/usr/bin/env bun
+
+import { devserver } from 'bamboo'
+
+const processes: [name: string, script: string][] = [
+  ['api', 'src/api.ts'],
+  ['frontend', 'bun run --hot src/frontend.ts'],
+  ['database', 'bunx prisma studio'],
+  ['watcher', 'bun run --watch src/watcher.ts'],
+]
+
+devserver(processes)
+import 'bamboo/src/devserver'
+```
+
+Run with: `bun run devserver-example.ts`
 
 ---
 

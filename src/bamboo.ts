@@ -3,6 +3,12 @@ import * as ncrypto from 'node:crypto'
 import { Encryption } from './core/encryption'
 
 export default class Bamboo {
+
+  // Readonly framework flags
+  static readonly isDev: boolean = process.env.NODE_ENV === 'development'
+  static readonly isProd: boolean = process.env.NODE_ENV === 'production'
+  static readonly isTest: boolean = process.env.NODE_ENV === 'test'
+
   /**
    *
    */
