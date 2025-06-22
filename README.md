@@ -1,122 +1,192 @@
-# Bamboo
+# 🎍 Bamboo
 
 [![Bamboo Test Suite](https://github.com/g33kidd/bamboo/actions/workflows/tests.yml/badge.svg)](https://github.com/g33kidd/bamboo/actions/workflows/tests.yml)
 
-**Bamboo** is a Web Framework for the
-[Bun.sh JavaScript Runtime](https://bun.sh). It is currently in rapid
-development and being used for [Nyra](https://nyra.chat). Currently not
-recommended to be used in production as it still does not have a stable API
-currently.
+**Bamboo** is a modern web framework for the [Bun.sh JavaScript Runtime](https://bun.sh), designed for rapid development and a future where both humans and AI can build together. 🚀
 
-The goal is to create a "feature rich" environment for both Humans and
-Artificial Intelligence to work within.
+> ⚠️ **Note:** Bamboo is under active development and its API is not yet stable. Use in production at your own risk!
 
-### Artificial Intelligence?
+---
 
-Currently, AI is great at a lot of things. It's also not great at a lot of
-things. One taks I believe it works great for is creating smaller isolated
-features with enough context. A goal for this project is to make it as simple as
-possible for an LLM to generate new features for an application. While I think
-this will take some time and there's a lot to do, I believe we can create a
-"convention over configuration" framework that serves the needs of both Humans
-and AI. Personally, I think this takes a different approach to what we currently
-build.
+## 🌟 Why Bamboo?
 
-# Feature Overview
+Bamboo aims to be a "feature-rich" environment for both humans and artificial intelligence. The vision: make it easy for developers—and even LLMs—to generate new features quickly, using convention over configuration. This means less boilerplate, more productivity, and a framework that adapts to the future of software development.
 
-Here's a current list of features both implemented and planned:
+---
 
-- HTTP Routing & WebSocket Routing
-- Built-in static asset handling w/ directory remapping.
-- WebSockets with individual connection state.
-- DevServer utilities. [WIP]
-- Background Services [WIP]
-- Distributed Messaging [WIP]
-- Extensions [WIP]
-  - Devhub
-- Storage [WIP]
-  - External service providers. [PLAN]
-  - Galaxy management w/ a web interface. [PLAN]
-  - Authorization for storage objects. [PLAN]
-- Rooms (Channels) API [WIP]
-  - Currently there is pub/sub.
+## ✨ Features
 
-#### Distributed Messaging
+- **HTTP & WebSocket Routing**
+- **Built-in Static Asset Handling** (with directory remapping)
+- **WebSockets with Per-Connection State**
+- **DevServer** - Multi-process development dashboard with real-time monitoring
+- **Background Services** *(WIP)*
+- **Distributed Messaging** *(WIP)*
+- **Extensions System** *(WIP)*
+  - Devhub: Built-in dashboard for multi-process dev, debugging, and more
+- **Storage System** *(WIP/Planned)*
+  - External providers, web interface, and object authorization
+- **Rooms (Channels) API** *(WIP)*
+  - Pub/Sub support
 
-Using the built-in `TelegramClient` and `TelegramServer` you can create systems
-that broadcast messages. The goal is to have a lightweight alternative to
-something like Amazon's SQS. This is great if you work with deployments on
-[Fly.io](https://fly.io) or any other container based architecture.
+---
 
-It's currently in-use in production for a multi-machine WebSocket service.
+## 🤖 AI-First Philosophy
 
-#### Extensions & Devhub
+Bamboo is designed so that even an LLM can generate new features with minimal context. The goal is to make feature creation as simple and automated as possible, for both humans and AI.
 
-Extensions offer the ability to manipulate the entire Bamboo engine for whatever
-you may need. Something currently in progress is the `devhub` extension, which
-allows developers to run multiple process, debug an application, view request
-lifecycle details, and much more through a built-in dashboard. This feature is
-currently a work in progress.
+---
 
-Here's an example:
+## 🚀 DevServer - Multi-Process Development Dashboard
 
-```javascript
+Bamboo's DevServer provides a beautiful web dashboard for running and monitoring multiple development processes simultaneously. Perfect for full-stack development where you need to run API servers, frontend dev servers, database tools, and more.
+
+### Quick Start
+
+```typescript
+import { devserver } from 'bamboo'
+
+// Define your development processes
+const processes: [name: string, script: string][] = [
+  ['api', 'src/api.ts'],
+  ['frontend', 'bun run --hot src/frontend.ts'],
+  ['database', 'bunx prisma studio'],
+  ['watcher', 'bun run --watch src/watcher.ts'],
+]
+
+// Start the devserver
+devserver(processes)
+
+// Import and run (this starts the dashboard)
+import 'bamboo/src/devserver'
+```
+
+### Features
+
+- **Real-time Output**: See live output from all processes in separate panels
+- **Process Control**: Start, stop, and restart individual processes
+- **Beautiful UI**: Modern, responsive dashboard with dark theme
+- **WebSocket Communication**: Real-time updates without page refresh
+- **Graceful Shutdown**: Properly terminates all processes on exit
+
+### Dashboard
+
+Visit `http://localhost:1337` to access the dashboard. Each process gets its own card with:
+
+- Process name and status indicator
+- Real-time output stream
+- Control buttons (Restart, Stop, Clear)
+- Connection status indicator
+
+### Example Usage
+
+```typescript
+// devserver-example.ts
+#!/usr/bin/env bun
+
+import { devserver } from 'bamboo'
+
+const processes: [name: string, script: string][] = [
+  ['api', 'src/api.ts'],
+  ['frontend', 'bun run --hot src/frontend.ts'],
+  ['database', 'bunx prisma studio'],
+  ['watcher', 'bun run --watch src/watcher.ts'],
+]
+
+devserver(processes)
+import 'bamboo/src/devserver'
+```
+
+Run with: `bun run devserver-example.ts`
+
+---
+
+## 📡 Distributed Messaging
+
+With `TelegramClient` and `TelegramServer`, you can broadcast messages across systems—a lightweight alternative to SQS, perfect for container-based deployments (like [Fly.io](https://fly.io)).
+
+---
+
+## 🧩 Extensions & Devhub
+
+Extensions let you customize the Bamboo engine. The `devhub` extension (WIP) provides a dashboard for running multiple processes, debugging, and viewing request lifecycles.
+
+```js
 devhub(engine, {
-  // Starts prisma studio.
   prismastudio: ['bunx', 'prisma', 'studio'],
-  // Runs the frontend devserver.
   frontend: {
     cmd: ['bunx', '--bun', 'vite'],
     cwd: join(cwd(), 'frontend'),
   },
-  // Telegram Server
   telegram: ['bunx', 'bamboo', 'telegram', '--serve'],
 })
 ```
 
-#### WebSocket State
+---
 
-Often times it's useful to maintain some kind of state for a client that is
-connected via WebSocket. Bamboo has a helper that allows you to manage that
-state in several ways:
+## 🔄 WebSocket State: Connection vs. Action
 
-```javascript
-// Assigns user.id to the WS connection. This is assigned to the active connection and is only reset when the user disconnects.
-endpoint.push('user.id', 1)
-endpoint.pushMany({ 'user.id': 1, token: '1234' })
-endpoint.pushIf(isAdmin, 'user.admin', true)
-endpoint.get('user.id')
-endpoint.remove('user.id')
+Bamboo makes it easy to manage both persistent (connection) and ephemeral (action) state for each WebSocket client.
 
-// Assigns data to the individual WS request/action. This is not reused and is only available within the context of each individual action.
-endpoint.stash('profile.id', 1)
-endpoint.stash('profile.id')
-endpoint.fromStash('profile.id')
+> 💡 **Tip:** Use connection state for info that lasts (like user ID), and action state for info that's just for one request (like the room being joined).
+
+### Example: Simple Chat App
+
+**1. On user join:**
+```js
+// When the user connects and logs in
+endpoint.push('user.id', user.id); // Stays for the session
 ```
 
-### Example Usage
+**2. On join room action:**
+```js
+function joinRoomAction(endpoint, data) {
+  endpoint.stash('room.id', data.roomId); // Only for this action
+  const userId = endpoint.get('user.id');
+  const roomId = endpoint.fromStash('room.id');
+  addUserToRoom(userId, roomId);
+  return endpoint.json({ success: true, roomId });
+}
+```
 
-There are currently a few examples in the `/examples` and `/test` folders.
+**3. On send message action:**
+```js
+function sendMessageAction(endpoint, data) {
+  const userId = endpoint.get('user.id'); // Persistent
+  const roomId = data.roomId; // Sent with each message
+  sendMessageToRoom(roomId, { userId, text: data.text });
+  return endpoint.json({ success: true });
+}
+```
 
-# My Notes
+> 🚀 **Why?**
+> The user ID is needed for every action (so it's stored for the session), but the room ID is only needed for specific actions (like joining a room or sending a message), so you can pass it as needed or stash it for a single action.
+
+---
+
+## 🧪 Examples & Tests
+
+Check out the `/examples` and `/test` folders for more sample code and usage patterns.
+
+---
+
+## 🤝 Contributing
+
+Contributions, ideas, and feedback are welcome! Please open an issue or pull request on GitHub.
+
+---
+
+## 🛠️ Developer Notes
 
 ### Engine
 
-Currently, there is a single instance of `Engine` that is created when you call
-`import {engine} from 'bamboo'` and this serves as the entire application's
-engine to work with. In the future, this needs to be changed to `createEngine()`
-so that additional instances can be created if needed.
+Currently, there is a single instance of `Engine` that is created when you call `import {engine} from 'bamboo'` and this serves as the entire application's engine to work with. In the future, this needs to be changed to `createEngine()` so that additional instances can be created if needed.
 
 ### Endpoint Responses
 
-Unsure if this is possible, but with responses it's kind of messy looking when I
-have to call `endpoint.json()` or anything else where I need to use an endpoint.
-I've been thinking about scopes and creating helper functions where the value of
-`endpoint` is known to exist, so it just uses it without having to pass it in.
-This would make for simpler and cleaner code, I think.
+Unsure if this is possible, but with responses it's kind of messy looking when I have to call `endpoint.json()` or anything else where I need to use an endpoint. I've been thinking about scopes and creating helper functions where the value of `endpoint` is known to exist, so it just uses it without having to pass it in. This would make for simpler and cleaner code, I think.
 
-Currently my investigation reveals that this is possible, but with TypeScript it
-may be tricky to implement without requiring `// @ts-ignore` everywhere.
+Currently my investigation reveals that this is possible, but with TypeScript it may be tricky to implement without requiring `// @ts-ignore` everywhere.
 
 This is the concept:
 
@@ -142,8 +212,7 @@ new Engine((val) => {
 })
 ```
 
-So that in the future our helper functions would look like below. I'll use the
-websocket stash as an example:
+So that in the future our helper functions would look like below. I'll use the websocket stash as an example:
 
 ```typescript
 stash('profile.id', 1)
@@ -151,18 +220,13 @@ stash('profile.id', 1)
 // Under the hood I imagine this looking something like:
 
 function stash<T>(name: string, value?: T): T | null {
-  // But we need to tell typescript that this doesn't exist in this current scope, it exists in the parent scope.
-  // Since the endpoint is modified directly, we shouldn't have to return it either. However, for some we will just
-  // want to return the value.
   if (endpoint && endpoint instanceof Endpoint) {
     if (value) {
-      // Writing to the stash, return null later.
       endpoint.stash(name, value)
     } else {
       return endpoint.fromStash(name)
     }
   }
-
   return null
 }
 

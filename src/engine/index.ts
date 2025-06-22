@@ -2,21 +2,27 @@ import { Server, ServerWebSocket } from 'bun'
 import { Edge } from 'edge.js'
 import { join } from 'path'
 import { cwd, hrtime } from 'process'
-import Action from '../actions/action'
+import Action, { action } from '../actions/action'
 import ActionGroup from '../actions/group'
 import ActionRegistry, { ActionWithParams } from '../actions/registry'
 import WebSocketAction from '../actions/websocketAction'
 import { BambooConfig } from '../config'
 import Endpoint from '../endpoint/Endpoint'
-import { parseActionURL } from '../helpers/action'
+import { loadActionDirectory, parseActionURL } from '../helpers/action'
 import Pipe from '../core/pipe'
 import RealtimeEngine from './realtime'
 import Service from '../core/service'
+import fs from 'fs/promises'
 import WebSocketEndpoint, {
   WebSocketEndpointData,
 } from '../endpoint/WebSocketEndpoint'
-import Logger, { createLogAdapter } from '../core/logging'
+import Logger, { createLogAdapter, LogLevel } from '../core/logging'
 import PresenceEngine from './presence'
+import { exists } from 'fs/promises'
+import RateLimitCache from '../extensions/ratelimit'
+import Extension from '../core/extension'
+import ExtensionContainer from '../core/extensions'
+import { ConsoleLogAdapter } from '../core/adapters/logging'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -78,14 +84,20 @@ export class Engine {
 
   /**
    * Extension storage
-   * TODO: This
    */
   // extensions: Map<string, Extension> = new Map()
+  extensions: ExtensionContainer = new ExtensionContainer()
 
   /**
    * Service instance storage
    */
   services: Map<string, Service<any>> = new Map()
+
+  /**
+   * Worker threads for CPU-intensive tasks
+   * Used for: image processing, data analysis, background jobs, heavy computations
+   */
+  workers: Map<string, any> = new Map()
 
   // NOTE: This is not currently used, and probably never will be.
   // workers: Map<string, Worker> = new Map()
@@ -100,10 +112,11 @@ export class Engine {
   // rooms: Map<string, Room> = new Map();
 
   // Rate Limiting
-  // rateLimiters: Map<string, EngineLimiter>
+  limiters: Map<string, EngineLimiter> = new Map()
+  limiterCache?: RateLimitCache = new RateLimitCache()
   // This needs to support an external service like redis.
   // TODO: It also needs to be separate from this, ie, not in the main Engine.
-  // rateCache?: Map<string, number>
+  // NOTE: This is already done?
 
   /**
    * WebSocket configuration for the engine
@@ -123,25 +136,31 @@ export class Engine {
   /**
    * Edge (from AdonisJS) is used as the templating engine currently, this is
    * the edgejs instance.
+   *
+   * TODO: Replace this with a custom templating engine built for bun.
    */
   edge: Edge
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
-    // this.rateLimiters = new Map()
     this.config = appConfig
     this.config.pathMap = new Map()
     this.edge = new Edge({ cache: true })
 
+    // TODO: rate limiter configuration should be in the configuration section
+    this.limiterCache?.loadFromCacheFile()
+
     // Register the development console.log logger in development mode.
     if (process.env.NODE_ENV === 'development') {
-      this.logging.register(createLogAdapter('dev-console', console.log))
+      this.logging.register(ConsoleLogAdapter)
+      this.logging.setLevel(LogLevel.DEBUG)
+    } else {
+      this.logging.register(ConsoleLogAdapter)
+      this.logging.setLevel(LogLevel.INFO)
     }
   }
 
   /**
    * Path mapping for static assets.
-   *
-   * TODO: NOTE: This should be moved out of here...
    */
   mapPath(from: string, to: string) {
     if (this.config.pathMap) {
@@ -154,8 +173,7 @@ export class Engine {
   /**
    * Configures the engine based on the EngineConfig passed in.
    */
-  configure(config?: EngineConfig) {
-    // If a custom configuration was passed in, use that. Otherwise, we'll assume the file structure and configure through that.
+  async configure(config?: EngineConfig) {
     if (config) {
       if (!this.config.pathMap) {
         this.config.pathMap = new Map<string, string>()
@@ -187,20 +205,16 @@ export class Engine {
       // Copy actions from the config into the Engine.
       if (config.actions) {
         if (config.actions.length > 0) {
-          for (let a = 0; a < config.actions.length; a++) {
-            const actionOrGroup = config.actions[a]
-            // Adds a new ActionGroup to the action registry.
-            if (actionOrGroup instanceof ActionGroup) {
-              this.registry.group(actionOrGroup)
-            }
-
-            // Adds a single Action into the action registry.
-            if (actionOrGroup instanceof Action) {
-              this.registry.action(actionOrGroup)
-            }
-          }
+          this.addActions(config.actions)
         }
       }
+
+      // Register actions from the application directory, if it exists in the current folder
+      // TODO: This still needs some work in order to properly load the actions.
+      // I suppose at this point it's quite similar to rails in the sense that we
+      // have "actions" and such. Whatever, keep going on this idea I guess.
+      //
+      // loadActionDirectory(this.config.paths.root)
 
       // Copy from the configuration into the engine.
       if (config.websocket) {
@@ -212,15 +226,346 @@ export class Engine {
         }
       }
     } else {
-      // TODO: Load configuration from these directories, import them and utilize them during Engine setup.
-      // TODO: Figure out a suitable file structure for Bamboo.
-      const pipes = join(cwd(), 'pipes')
-      const actions = join(cwd(), 'actions')
+      this.logging.info('No EngineConfig provided, using convention over configuration')
 
-      this.logging.log('No EngineConfig, loading configuration from:', cwd())
+      // Convention over configuration - auto-discover from common directory structures
+      await this.loadConventionBasedConfiguration()
     }
 
     return this
+  }
+
+  /**
+   * Loads configuration based on common conventions
+   * Follows a Rails-like structure for easy onboarding
+   */
+  private async loadConventionBasedConfiguration() {
+    const rootDir = cwd()
+
+    // Common directory patterns to check
+    const conventions = {
+      actions: ['actions', 'src/actions', 'app/actions', 'routes'],
+      pipes: ['pipes', 'src/pipes', 'app/pipes', 'middleware'],
+      services: ['services', 'src/services', 'app/services'],
+      views: ['views', 'src/views', 'app/views', 'templates'],
+      workers: ['workers', 'src/workers', 'app/workers'],
+      websocket: ['websocket', 'src/websocket', 'app/websocket', 'ws']
+    }
+
+    this.logging.info('Auto-discovering configuration from:', rootDir)
+
+    // Load actions
+    await this.loadActionsFromConvention(rootDir, conventions.actions)
+
+    // Load pipes
+    await this.loadPipesFromConvention(rootDir, conventions.pipes)
+
+    // Load services
+    await this.loadServicesFromConvention(rootDir, conventions.services)
+
+    // Load views
+    await this.loadViewsFromConvention(rootDir, conventions.views)
+
+    // Load workers
+    await this.loadWorkersFromConvention(rootDir, conventions.workers)
+
+    // Load WebSocket configuration
+    await this.loadWebSocketFromConvention(rootDir, conventions.websocket)
+  }
+
+  /**
+   * Auto-discovers and loads actions from common directory patterns
+   */
+  private async loadActionsFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const actionsDir = join(rootDir, pattern)
+      if (await exists(actionsDir)) {
+        this.logging.info(`Found actions directory: ${pattern}`)
+
+        try {
+          const actions = await this.discoverActions(actionsDir)
+          this.addActions(actions)
+          this.logging.info(`Loaded ${actions.length} actions from ${pattern}`)
+          return // Found and loaded, no need to check other patterns
+        } catch (error) {
+          this.logging.warn(`Failed to load actions from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No actions directory found, skipping action loading')
+  }
+
+  /**
+   * Auto-discovers and loads pipes from common directory patterns
+   */
+  private async loadPipesFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const pipesDir = join(rootDir, pattern)
+      if (await exists(pipesDir)) {
+        this.logging.info(`Found pipes directory: ${pattern}`)
+
+        try {
+          const pipes = await this.discoverPipes(pipesDir)
+          this.pipes.push(...pipes)
+          this.logging.info(`Loaded ${pipes.length} pipes from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load pipes from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No pipes directory found, skipping pipe loading')
+  }
+
+  /**
+   * Auto-discovers and loads services from common directory patterns
+   */
+  private async loadServicesFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const servicesDir = join(rootDir, pattern)
+      if (await exists(servicesDir)) {
+        this.logging.info(`Found services directory: ${pattern}`)
+
+        try {
+          const services = await this.discoverServices(servicesDir)
+          for (const service of services) {
+            this.services.set(service.name, service.instance)
+          }
+          this.logging.info(`Loaded ${services.length} services from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load services from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No services directory found, skipping service loading')
+  }
+
+  /**
+   * Auto-discovers and loads views from common directory patterns
+   */
+  private async loadViewsFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const viewsDir = join(rootDir, pattern)
+      if (await exists(viewsDir)) {
+        this.logging.info(`Found views directory: ${pattern}`)
+
+        try {
+          this.edge.mount(viewsDir)
+          this.logging.info(`Mounted views from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to mount views from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No views directory found, skipping view loading')
+  }
+
+  /**
+   * Auto-discovers and loads workers from common directory patterns
+   */
+  private async loadWorkersFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const workersDir = join(rootDir, pattern)
+      if (await exists(workersDir)) {
+        this.logging.info(`Found workers directory: ${pattern}`)
+
+        try {
+          const workers = await this.discoverWorkers(workersDir)
+          for (const [name, scriptPath] of workers) {
+            this.createWorker(name, scriptPath)
+          }
+          this.logging.info(`Loaded ${workers.size} workers from ${pattern}`)
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load workers from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No workers directory found, skipping worker loading')
+  }
+
+  /**
+   * Auto-discovers and loads WebSocket configuration from common directory patterns
+   */
+  private async loadWebSocketFromConvention(rootDir: string, patterns: string[]) {
+    for (const pattern of patterns) {
+      const wsDir = join(rootDir, pattern)
+      if (await exists(wsDir)) {
+        this.logging.info(`Found WebSocket directory: ${pattern}`)
+
+        try {
+          const wsConfig = await this.discoverWebSocketConfig(wsDir)
+          if (wsConfig) {
+            this.websocket = wsConfig
+            this.logging.info(`Loaded WebSocket configuration from ${pattern}`)
+          }
+          return
+        } catch (error) {
+          this.logging.warn(`Failed to load WebSocket config from ${pattern}:`, error)
+        }
+      }
+    }
+
+    this.logging.info('No WebSocket directory found, skipping WebSocket loading')
+  }
+
+  /**
+   * Discovers action files and loads them
+   */
+  private async discoverActions(actionsDir: string): Promise<any[]> {
+    const actions: any[] = []
+    const files = await fs.readdir(actionsDir, { withFileTypes: true })
+
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const actionPath = join(actionsDir, file.name)
+          const actionModule = await import(actionPath)
+
+          // Handle different export patterns
+          if (actionModule.default) {
+            if (Array.isArray(actionModule.default)) {
+              actions.push(...actionModule.default)
+            } else {
+              actions.push(actionModule.default)
+            }
+          } else if (actionModule.actions) {
+            actions.push(...actionModule.actions)
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load action from ${file.name}:`, error)
+        }
+      }
+    }
+
+    return actions
+  }
+
+  /**
+   * Discovers pipe files and loads them
+   */
+  private async discoverPipes(pipesDir: string): Promise<any[]> {
+    const pipes: any[] = []
+    const files = await fs.readdir(pipesDir, { withFileTypes: true })
+
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const pipePath = join(pipesDir, file.name)
+          const pipeModule = await import(pipePath)
+
+          if (pipeModule.default) {
+            if (Array.isArray(pipeModule.default)) {
+              pipes.push(...pipeModule.default)
+            } else {
+              pipes.push(pipeModule.default)
+            }
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load pipe from ${file.name}:`, error)
+        }
+      }
+    }
+
+    return pipes
+  }
+
+  /**
+   * Discovers service files and loads them
+   */
+  private async discoverServices(servicesDir: string): Promise<any[]> {
+    const services: any[] = []
+    const files = await fs.readdir(servicesDir, { withFileTypes: true })
+
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        try {
+          const servicePath = join(servicesDir, file.name)
+          const serviceModule = await import(servicePath)
+
+          if (serviceModule.default) {
+            const serviceName = file.name.replace(/\.(ts|js)$/, '')
+            services.push({
+              name: serviceName,
+              instance: serviceModule.default
+            })
+          }
+        } catch (error) {
+          this.logging.warn(`Failed to load service from ${file.name}:`, error)
+        }
+      }
+    }
+
+    return services
+  }
+
+  /**
+   * Discovers worker files and loads them
+   */
+  private async discoverWorkers(workersDir: string): Promise<Map<string, string>> {
+    const workers = new Map<string, string>()
+    const files = await fs.readdir(workersDir, { withFileTypes: true })
+
+    for (const file of files) {
+      if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
+        const workerName = file.name.replace(/\.(ts|js)$/, '')
+        const workerPath = join(workersDir, file.name)
+        workers.set(workerName, workerPath)
+      }
+    }
+
+    return workers
+  }
+
+  /**
+   * Discovers WebSocket configuration
+   */
+  private async discoverWebSocketConfig(wsDir: string): Promise<EngineWebSocketConfig | null> {
+    const configFile = join(wsDir, 'config.ts')
+    if (await exists(configFile)) {
+      try {
+        const configModule = await import(configFile)
+        return configModule.default || configModule.config
+      } catch (error) {
+        this.logging.warn(`Failed to load WebSocket config:`, error)
+      }
+    }
+
+    // Try to auto-discover WebSocket actions
+    const actions = await this.discoverActions(wsDir)
+    if (actions.length > 0) {
+      return {
+        actions,
+        pipes: []
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Adds actions/groups to the action registry
+   */
+  addActions(actions: (Action | ActionGroup)[]) {
+    for (let a = 0; a < actions.length; a++) {
+      const actionOrGroup = actions[a]
+      // Adds a new ActionGroup to the action registry.
+      if (actionOrGroup instanceof ActionGroup) {
+        this.registry.group(actionOrGroup)
+      }
+
+      // Adds a single Action into the action registry.
+      if (actionOrGroup instanceof Action) {
+        this.registry.action(actionOrGroup)
+      }
+    }
   }
 
   /**
@@ -262,6 +607,14 @@ export class Engine {
     const engine = this
 
     if (typeof this.server === 'undefined') {
+      // Start periodic cleanup of rate limit cache to prevent memory leaks
+      if (this.limiterCache) {
+        setInterval(async () => {
+          await this.limiterCache?.cleanup()
+          this.logging.debug('Rate limit cache cleanup completed')
+        }, 5 * 60 * 1000) // Clean up every 5 minutes
+      }
+
       this.server = Bun.serve({
         hostname: process.env.HOSTNAME || '0.0.0.0',
         port: Number(process.env.PORT) || 3000,
@@ -365,11 +718,7 @@ export class Engine {
   async handleWebSocketPipes(endpoint: WebSocketEndpoint) {
     if (this.websocket?.pipes) {
       for (let i = 0; i < this.websocket?.pipes.length; i++) {
-        const pipe = this.websocket.pipes[i]
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[wsPipe:${pipe.name}]`)
-        }
-        endpoint = await pipe.handle(endpoint)
+        endpoint = await this.websocket.pipes[i].handle(endpoint)
       }
     }
 
@@ -440,50 +789,47 @@ export class Engine {
   /**
    * Checks if a context's ratelimit has been exceeded.
    *
-   * TODO: Finish this, include the timestamp of the first request & most recent request to determine
-   * if the limit should be reset, keep counting, or deny requests.
-   *
-   * TODO: Move this.
+   * @param context The rate limit context (e.g., 'api:requests', 'chat:messages')
+   * @param limit Number of requests allowed within the interval
+   * @param interval Interval in milliseconds (default: 1 minute)
+   * @returns true if rate limit is exceeded, false otherwise
    */
-  // ratelimit(
-  //   context: string,
-  //   limit: number = 60,
-  //   interval: number = 1000 * 60,
-  // ): boolean {
-  //   const limiterContext = context.split('/')[0] // removes the IP hash from the context.
-  //   const limiter = this.rateLimiters.get(limiterContext)
+  async ratelimit(
+    context: string,
+    limit: number = 60,
+    interval: number = 1000 * 60,
+  ): Promise<boolean> {
+    const limiterContext = context.split('/')[0] // removes the IP hash from the context.
+    const limiter = this.limiters.get(limiterContext)
 
-  //   // Create a limiter if there is none specified at Engine start.
-  //   if (!limiter) {
-  //     this.rateLimiters.set(limiterContext, {
-  //       amount: limit,
-  //       perIntervalMs: interval,
-  //     })
-  //   }
+    // Create a limiter if there is none specified at Engine start.
+    if (!limiter) {
+      this.limiter(limiterContext, limit, interval)
+    }
 
-  //   // let now = Date.now()
-  //   let currentAmount = 0
+    // Initialize rate limit cache if not exists
+    if (!this.limiterCache) {
+      this.limiterCache = new RateLimitCache()
+    }
 
-  //   if (!this.rateCache) {
-  //     this.rateCache = new Map()
-  //   }
+    // Track the request with proper interval handling
+    const limitRecord = await this.limiterCache.track(context, interval)
 
-  //   if (!this.rateCache.has(context)) {
-  //     this.rateCache.set(context, 0)
-  //   } else {
-  //     const current = this.rateCache.get(context)
-  //     if (current) {
-  //       currentAmount = current + 1
-  //       this.rateCache.set(context, currentAmount)
-  //     }
-  //   }
+    // Check if rate limit is exceeded
+    const isExceeded = limitRecord.current > limit
 
-  //   if (currentAmount <= limit) {
-  //     return false
-  //   } else {
-  //     return true
-  //   }
-  // }
+    if (isExceeded) {
+      this.logging.warn('Rate limit exceeded', {
+        context,
+        current: limitRecord.current,
+        limit,
+        interval,
+        timeSinceFirst: Date.now() - limitRecord.timestamp,
+      })
+    }
+
+    return isExceeded
+  }
 
   /**
    * Creates a limiter.
@@ -492,12 +838,43 @@ export class Engine {
    * @param limit Number of requests allowed.
    * @param interval Interval in which the limit is allowed.
    */
-  // limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
-  //   this.rateLimiters?.set(context, {
-  //     amount: limit,
-  //     perIntervalMs: interval,
-  //   })
-  // }
+  limiter(context: string, limit: number = 60, interval: number = 1000 * 60) {
+    this.limiters?.set(context, {
+      amount: limit,
+      perIntervalMs: interval,
+    })
+  }
+
+  /**
+   * Gets rate limit information for a context
+   * 
+   * @param context The rate limit context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  async getRateLimitInfo(context: string) {
+    if (!this.limiterCache) {
+      return null
+    }
+
+    const limiterContext = context.split('/')[0]
+    const limiter = this.limiters.get(limiterContext)
+
+    if (!limiter) {
+      return null
+    }
+
+    const remaining = await this.limiterCache.getRemaining(context, limiter.amount)
+    const resetTime = await this.limiterCache.getResetTime(context)
+
+    return {
+      context,
+      limit: limiter.amount,
+      interval: limiter.perIntervalMs,
+      remaining,
+      resetTime,
+      resetTimeSeconds: Math.ceil(resetTime / 1000)
+    }
+  }
 
   /**
    * Handles global application pipes for HTTP actions
@@ -509,6 +886,90 @@ export class Engine {
     }
 
     return endpoint
+  }
+
+  /**
+   * Registers an extension within the engine
+   *
+   * At the moment I can't think of anything else to add to this until I start
+   * setting up an extension with the engine first. I don't know what else I need
+   * besides a few hooks.
+   */
+  extend(extension: Extension | Function) {
+    if (typeof extension === 'function') {
+      extension()
+    } else {
+      this.extensions.add(extension)
+    }
+  }
+
+  /**
+   * Creates and registers a new worker
+   */
+  createWorker(name: string, scriptPath: string, options?: any): any {
+    if (this.workers.has(name)) {
+      this.logging.warn(`Worker '${name}' already exists, terminating existing worker`)
+      this.terminateWorker(name)
+    }
+
+    const worker = new Worker(scriptPath, options)
+    this.workers.set(name, worker)
+
+    worker.onerror = (error) => {
+      this.logging.error(`Worker '${name}' error:`, error)
+    }
+
+    worker.onmessage = (message) => {
+      this.logging.debug(`Worker '${name}' message:`, message.data)
+    }
+
+    this.logging.info(`Worker '${name}' created successfully`)
+    return worker
+  }
+
+  /**
+   * Terminates a specific worker
+   */
+  terminateWorker(name: string): boolean {
+    const worker = this.workers.get(name)
+    if (worker) {
+      worker.terminate()
+      this.workers.delete(name)
+      this.logging.info(`Worker '${name}' terminated`)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Terminates all workers
+   */
+  terminateAllWorkers(): void {
+    for (const [name, worker] of this.workers) {
+      worker.terminate()
+      this.logging.info(`Worker '${name}' terminated`)
+    }
+    this.workers.clear()
+  }
+
+  /**
+   * Gets a worker by name
+   */
+  getWorker(name: string): any {
+    return this.workers.get(name)
+  }
+
+  /**
+   * Sends a message to a specific worker
+   */
+  sendToWorker(name: string, message: any): boolean {
+    const worker = this.workers.get(name)
+    if (worker) {
+      worker.postMessage(message)
+      return true
+    }
+    this.logging.warn(`Worker '${name}' not found`)
+    return false
   }
 }
 

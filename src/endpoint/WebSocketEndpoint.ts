@@ -1,6 +1,33 @@
 import { ServerWebSocket } from 'bun'
 import { engine } from '../..'
 import BaseEndpoint from './BaseEndpoint'
+import Bamboo from '../bamboo'
+import { sign, verify } from '../core/encryption'
+
+// sent events through using WebSocketEndpoint.pub or sendEvent
+export type EventContainer = {
+  event: string
+  data: Object
+  persist: boolean
+  expiresAt?: string
+}
+
+/**
+ * used to create response schema, and for types!
+ */
+function createEventContainer(
+  event: string,
+  data: Object,
+  persist: boolean = false,
+  expiresAt?: string,
+): EventContainer {
+  return {
+    event,
+    data,
+    persist,
+    expiresAt: expiresAt ?? '',
+  }
+}
 
 export type MessageParameters = {
   event: string
@@ -66,6 +93,13 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   }
 
   /**
+   * Checks if the client is still connected.
+   */
+  isAvailable() {
+    return this.ws.readyState === 1
+  }
+
+  /**
    * TODO: Improve this functionality. Ideally, it should allow for data to be listened to.
    */
 
@@ -99,7 +133,7 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   }
 
   /** Gets data from the websocket context. */
-  get(key: string, defaultValue?: any) {
+  get<T = any>(key: string, defaultValue?: any) {
     return this.ws.data[key] || defaultValue || null
   }
 
@@ -141,13 +175,60 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    *
    * Shuffles the websocket token that the connection originally started with.
    * Useful for invalidating the original token and using a token that the user cannot see.
+   * 
+   * @param useSignedToken - If true, creates a signed token that can be verified later
+   * @returns The new token, or null if shuffling failed
    */
-  // shuffleToken() {
-  //   if (this.getToken()) {
-  //     // Replace the token with a new token.
+  async shuffleToken(useSignedToken: boolean = false): Promise<string | null> {
+    const currentToken = this.getToken()
+    if (!currentToken) {
+      return null
+    }
 
-  //   }
-  // }
+    try {
+      // Generate a new secure token
+      const newToken = Bamboo.randomValue('base64')
+
+      // Store the new token in the WebSocket data
+      this.push('token', newToken)
+
+      // Store the original token for reference (useful for cleanup)
+      this.push('originalToken', currentToken)
+
+      // If using signed tokens, create a signed version
+      if (useSignedToken) {
+        const signedToken = await sign('websocket:token', newToken)
+        this.push('signedToken', signedToken)
+        return signedToken
+      }
+
+      return newToken
+    } catch (error) {
+      engine.logging.error('Failed to shuffle WebSocket token', { error })
+      return null
+    }
+  }
+
+  /**
+   * Verifies if the current token is valid (if using signed tokens)
+   * @param expectedContext - The expected context for the token
+   * @returns True if token is valid, false otherwise
+   */
+  async verifyToken(expectedContext: string = 'websocket:token'): Promise<boolean> {
+    const signedToken = this.get('signedToken')
+    if (!signedToken) {
+      // If no signed token, just check if we have any token
+      return !!this.getToken()
+    }
+
+    try {
+      const result = await verify(expectedContext, signedToken)
+      return result ? result.valid : false
+    } catch (error) {
+      engine.logging.error('Failed to verify WebSocket token', { error })
+      return false
+    }
+  }
 
   /**
    * Converts the received string message into an object.
@@ -180,11 +261,36 @@ export default class WebSocketEndpoint extends BaseEndpoint {
   /**
    * Returns true if the ratelimit has exceeded, returns false otherwise.
    */
-  ratelimit(context: string, limit: number = 60): boolean {
-    const ip = this.ws.remoteAddress.toString()
-    const ipHash = Buffer.from(ip).toString('base64')
-    context += `/${ipHash}`
-    return engine.ratelimit(context, limit)
+  async ratelimit(
+    context: string,
+    limit: number = 60,
+    forIP: boolean = false,
+  ): Promise<boolean> {
+    // TODO: Confirm that this IP address isn't blacklisted or anything.
+    if (forIP) {
+      const ip = this.ws.remoteAddress.toString()
+      const ipHash = Buffer.from(ip).toString('base64')
+      return engine.ratelimit(`${context}/${ipHash}`, limit)
+    } else {
+      return engine.ratelimit(context, limit)
+    }
+  }
+
+  /**
+   * Gets rate limit information for the current context
+   * 
+   * @param context The rate limit context
+   * @param forIP Whether to include IP in the context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  async getRateLimitInfo(context: string, forIP: boolean = false) {
+    if (forIP) {
+      const ip = this.ws.remoteAddress.toString()
+      const ipHash = Buffer.from(ip).toString('base64')
+      return engine.getRateLimitInfo(`${context}/${ipHash}`)
+    } else {
+      return engine.getRateLimitInfo(context)
+    }
   }
 
   /**
@@ -253,16 +359,46 @@ export default class WebSocketEndpoint extends BaseEndpoint {
    * Or, if undefined, sends the stored response as a message.
    *
    * TODO: Refactor this. Why?
+   * NOTE: I still don't remember why I need to refactor this at all.
+   * NOTE: still don't remember why, but keep checking back :)
    */
   send(data?: string | Buffer) {
     if (!data) {
       if (this.response) {
         this.ws.send(this.response, this.compressed)
-        // console.log(sentBytes);
+        // console.log(sentBytes); TODO: Logging
       }
     } else {
-      this.ws.send(data, this.compressed)
-      // console.log(sentBytes);
+      if (typeof data === 'string') {
+        this.ws.send(data, this.compressed)
+      } else {
+        // NOTE: send as buffer because a string data type will be sent as a buffer anyways.
+        this.ws.send(data.buffer, this.compressed)
+      }
+    }
+  }
+
+  /**
+   * Sends an event kind of like `pub` would, but sends it to the client
+   * directly.
+   *
+   * TODO: Create a general 'lobby' for the client so we don't have a bunch
+   * of random websocket channels laying around.
+   */
+  sendEvent(event: string, data: object) {
+    try {
+      if (this.isAvailable()) {
+        const response = JSON.stringify({
+          event,
+          data,
+        })
+
+        this.ws.send(response)
+      } else {
+        throw new Error('Cannot publish event. Client not connected!')
+      }
+    } catch (error) {
+      //
     }
   }
 

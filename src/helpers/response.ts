@@ -26,7 +26,7 @@ export function json(
 
     if (currentEndpoint) {
       try {
-        const json = JSON.stringify(data, null, 0)
+        // const json = JSON.stringify(data, null, 0)
 
         // Infer the type of Endpoint based on the realtime flag
         if (currentEndpoint.realtime) {

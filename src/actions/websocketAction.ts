@@ -7,15 +7,18 @@ import WebSocketEndpoint from '../endpoint/WebSocketEndpoint'
 export default class WebSocketAction {
   definition: string
   handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>
+  beforePipes?: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>
   pipes?: Pipe<WebSocketEndpoint>[]
 
   constructor(
     _definition: string,
     _handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
     _pipes?: Pipe<WebSocketEndpoint>[],
+    _beforePipes?: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
   ) {
     this.definition = _definition
     this.handler = _handler
+    this.beforePipes = _beforePipes
     this.pipes = _pipes
   }
 
@@ -27,6 +30,10 @@ export default class WebSocketAction {
 
   async handlePipes(endpoint: WebSocketEndpoint) {
     if (this.pipes && this.pipes?.length > 0) {
+      if (this.beforePipes) {
+        endpoint = await this.beforePipes(endpoint)
+      }
+
       const pipeLogNames = this.pipes.map((p) => p.name).join(' -> ')
 
       // TODO: Logging: Replace this with logging.
@@ -47,6 +54,7 @@ export function ws(
   definition: string,
   handler: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
   pipes?: Pipe<WebSocketEndpoint>[],
+  beforePipes?: (endpoint: WebSocketEndpoint) => Promise<WebSocketEndpoint>,
 ) {
-  return new WebSocketAction(definition, handler, pipes)
+  return new WebSocketAction(definition, handler, pipes, beforePipes)
 }

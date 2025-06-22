@@ -50,7 +50,7 @@ export default class Endpoint extends BaseEndpoint {
    */
   createSecureToken(encoding: BufferEncoding = 'base64') {
     // const secret = "123412341234";
-    const buffer = Buffer.from(ncrypto.randomBytes(64))
+    const buffer = Buffer.from(ncrypto.randomBytes(64).buffer)
     buffer.write(Date.now().toString(), 8)
     // crypto.subtle.sign("sha256", buffer, secret);
     // const signed = crypto.sign("sha256", buffer, secret);
@@ -147,7 +147,7 @@ export default class Endpoint extends BaseEndpoint {
   /**
    * Sends a file as a response.
    *
-   * TODO: Compression.
+   * TODO: Compression. Look into some algorithms or libraries to handle this.
    */
   async file(path: string) {
     if (!this.locked) {
@@ -216,5 +216,33 @@ export default class Endpoint extends BaseEndpoint {
     }
 
     return this
+  }
+
+  /**
+   * Returns true if the ratelimit has exceeded, returns false otherwise.
+   */
+  async ratelimit(
+    context: string,
+    limit: number = 60,
+    interval: number = 1000 * 60,
+  ): Promise<boolean> {
+    return engine.ratelimit(context, limit, interval)
+  }
+
+  /**
+   * Gets rate limit information for the current context
+   * 
+   * @param context The rate limit context
+   * @returns Rate limit information including remaining requests and reset time
+   */
+  async getRateLimitInfo(context: string) {
+    return engine.getRateLimitInfo(context)
+  }
+
+  /**
+   * Gets the request body as JSON
+   */
+  get body() {
+    return this.params
   }
 }

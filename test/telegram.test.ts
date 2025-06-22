@@ -4,7 +4,7 @@ import { TelegramClientOpts } from '../src/telegram/client'
 import { exit } from 'process'
 
 const connection = { hostname: 'localhost', port: 4560 }
-const server = new TelegramServer({ ...connection })
+const server = new TelegramServer({ ...connection }, true)
 
 const clientDefaults: TelegramClientOpts = {
   ...connection,
@@ -12,10 +12,6 @@ const clientDefaults: TelegramClientOpts = {
 }
 
 describe('Telegram', () => {
-  afterAll(() => {
-    exit()
-  })
-
   test('server handles client disconnect.', async () => {
     const client = new TelegramClient(clientDefaults)
     await Bun.sleep(5)

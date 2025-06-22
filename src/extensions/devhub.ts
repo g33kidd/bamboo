@@ -46,12 +46,12 @@ export default async function devhub(engine: Engine, options: DevHubConfig) {
   // const bambooFileExists = await bamboofile.exists();
 
   // if (!bambooFileExists) {
-  //   console.log("creating .bamboo file...");
+  //   engine.logging.info("creating .bamboo file...");
   //   await Bun.write(bamboopath, JSON.stringify(bamboo));
   // } else {
-  //   console.log("reading .bamboo file...");
+  //   engine.logging.info("reading .bamboo file...");
   //   bamboo = await bamboofile.json();
-  //   console.log(bamboo);
+  //   engine.logging.debug("bamboo file contents", { bamboo });
   // }
 
   // // Kill off any processes that haven't been killed off.
@@ -62,16 +62,16 @@ export default async function devhub(engine: Engine, options: DevHubConfig) {
   //       process.kill(pid, 0);
   //     } catch (e) {
   //       // Failed to kill PID, likely that it doesn't exist anymore.
-  //       // console.error(e);
+  //       // engine.logging.error("Failed to kill PID", { pid, error: e });
   //     }
   //   }
   //   bamboo.pids = [];
   // }
 
-  console.log('devhub enabled...')
+  engine.logging.info('devhub enabled...')
 
   if (Object.keys(options).length <= 0) {
-    console.info('no devhub extensions found...')
+    engine.logging.info('no devhub extensions found...')
     return
   }
 

@@ -110,7 +110,6 @@ export default class Presence<StateType, EntityType> {
 
   /**
    * Registers a new event listener
-   * TODO: off, once, etc...
    */
   on(event: string, handler: (...args: any[]) => void) {
     this.emitter.on(event, handler)
