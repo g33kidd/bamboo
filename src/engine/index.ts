@@ -1,5 +1,6 @@
 import { Server, ServerWebSocket } from 'bun'
 import { join } from 'path'
+import * as ncrypto from 'node:crypto'
 import { cwd, hrtime } from 'process'
 import Action, { action } from '../actions/action'
 import ActionGroup from '../actions/group'
@@ -22,7 +23,7 @@ import RateLimitCache from '../extensions/ratelimit'
 import Extension from '../core/extension'
 import ExtensionContainer from '../core/extensions'
 import { ConsoleLogAdapter } from '../core/adapters/logging'
-import { engine } from '../..'
+import Bamboo, { engine } from '../..'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -135,6 +136,11 @@ export class Engine {
    * TODO: Add template rendering capabilities as needed
    */
   views: ViewMount = new ViewMount()
+
+  /**
+   * Unique identifier for the current engine instance.
+   */
+  readonly instanceId: string = Buffer.from(ncrypto.randomBytes(32).buffer).toString('base64', 8)
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.config = appConfig
@@ -1036,9 +1042,12 @@ class ViewMount {
       return data[variable] !== undefined ? String(data[variable]) : match
     })
 
-    // Handle basic conditionals: @if(condition) ... @endif
-    result = result.replace(/@if\s*\(\s*(\w+)\s*\)([\s\S]*?)@endif/g, (match, condition, content) => {
-      return data[condition] ? content : ''
+    // Handle basic conditionals: @if(condition) ... @else ... @endif
+    result = result.replace(/@if\s*\(\s*(\w+)\s*\)([\s\S]*?)(?:@else([\s\S]*?))?@endif/g, (match, condition, ifContent, elseContent) => {
+      const value = data[condition]
+      const isTruthy = value === true || (typeof value === 'string' && value !== 'false' && value !== '0' && value !== '') || (typeof value === 'number' && value !== 0)
+
+      return isTruthy ? ifContent : (elseContent || '')
     })
 
     // Handle basic loops: @each(item in items) ... @endeach
