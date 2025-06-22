@@ -1,5 +1,4 @@
 import { Server, ServerWebSocket } from 'bun'
-import { Edge } from 'edge.js'
 import { join } from 'path'
 import { cwd, hrtime } from 'process'
 import Action, { action } from '../actions/action'
@@ -23,6 +22,7 @@ import RateLimitCache from '../extensions/ratelimit'
 import Extension from '../core/extension'
 import ExtensionContainer from '../core/extensions'
 import { ConsoleLogAdapter } from '../core/adapters/logging'
+import { engine } from '../..'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -51,10 +51,6 @@ export type EngineLimiter = {
   amount: number
   perIntervalMs: number
 }
-
-// export type Room = {
-//   handlers: WebSocketHandler[];
-// };
 
 /**
  * An Engine is responsible for handling the application server, extensions and anything else you might need during development.
@@ -134,17 +130,15 @@ export class Engine {
   presence: PresenceEngine = new PresenceEngine()
 
   /**
-   * Edge (from AdonisJS) is used as the templating engine currently, this is
-   * the edgejs instance.
-   *
-   * TODO: Replace this with a custom templating engine built for bun.
+   * Simple view mounting system to replace edge.js
+   * 
+   * TODO: Add template rendering capabilities as needed
    */
-  edge: Edge
+  views: ViewMount = new ViewMount()
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.config = appConfig
     this.config.pathMap = new Map()
-    this.edge = new Edge({ cache: true })
 
     // TODO: rate limiter configuration should be in the configuration section
     this.limiterCache?.loadFromCacheFile()
@@ -180,7 +174,7 @@ export class Engine {
       }
 
       // console.log(this.config.paths);
-      this.edge.mount(this.config.paths.views)
+      this.views.mount(this.config.paths.views)
 
       // Copy pipes from the config into the Engine.
       if (config.pipes) {
@@ -354,7 +348,7 @@ export class Engine {
         this.logging.info(`Found views directory: ${pattern}`)
 
         try {
-          this.edge.mount(viewsDir)
+          this.views.mount(viewsDir)
           this.logging.info(`Mounted views from ${pattern}`)
           return
         } catch (error) {
@@ -970,6 +964,102 @@ export class Engine {
     }
     this.logging.warn(`Worker '${name}' not found`)
     return false
+  }
+}
+
+/**
+ * Simple view mounting system to replace edge.js
+ */
+class ViewMount {
+  private mountedPaths: Set<string> = new Set()
+  private templateCache: Map<string, string> = new Map()
+
+  mount(path: string) {
+    this.mountedPaths.add(path)
+  }
+
+  getMountedPaths(): string[] {
+    return Array.from(this.mountedPaths)
+  }
+
+  isMounted(path: string): boolean {
+    return this.mountedPaths.has(path)
+  }
+
+  /**
+   * Render a template with variable injection and basic conditionals
+   */
+  async render(templatePath: string, data: Record<string, any> = {}): Promise<string> {
+    // Check cache first
+    if (this.templateCache.has(templatePath)) {
+      return this.processTemplate(this.templateCache.get(templatePath)!, data)
+    }
+
+    // Find template in mounted paths
+    for (const mountedPath of this.mountedPaths) {
+      let fullPath = join(mountedPath, templatePath)
+
+      try {
+        const template = await fs.readFile(fullPath, 'utf-8')
+        this.templateCache.set(templatePath, template)
+        return this.processTemplate(template, data)
+      } catch (error) {
+        // If no extension provided, try with .edge extension
+        if (!templatePath.includes('.')) {
+          const edgePath = join(mountedPath, `${templatePath}.edge`)
+
+          try {
+            const template = await fs.readFile(edgePath, 'utf-8')
+            this.templateCache.set(templatePath, template)
+            return this.processTemplate(template, data)
+          } catch (edgeError) {
+            // Continue to next mounted path
+          }
+        }
+
+        // Continue to next mounted path
+        continue
+      }
+    }
+
+    throw new Error(`Template not found: ${templatePath}`)
+  }
+
+  /**
+   * Process template with variable injection and basic conditionals
+   */
+  private processTemplate(template: string, data: Record<string, any>): string {
+    let result = template
+
+    // Handle variable injection: {{ variable }}
+    result = result.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, variable) => {
+      return data[variable] !== undefined ? String(data[variable]) : match
+    })
+
+    // Handle basic conditionals: @if(condition) ... @endif
+    result = result.replace(/@if\s*\(\s*(\w+)\s*\)([\s\S]*?)@endif/g, (match, condition, content) => {
+      return data[condition] ? content : ''
+    })
+
+    // Handle basic loops: @each(item in items) ... @endeach
+    result = result.replace(/@each\s*\(\s*(\w+)\s+in\s+(\w+)\s*\)([\s\S]*?)@endeach/g, (match, itemVar, itemsVar, content) => {
+      const items = data[itemsVar]
+      if (!Array.isArray(items)) return ''
+
+      return items.map(item => {
+        const itemData = { ...data, [itemVar]: item }
+        return this.processTemplate(content, itemData)
+      }).join('')
+    })
+
+    return result
+  }
+
+  /**
+   * Clear template cache
+   */
+  clearCache() {
+    this.templateCache.clear()
   }
 }
 

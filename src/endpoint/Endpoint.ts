@@ -119,7 +119,7 @@ export default class Endpoint extends BaseEndpoint {
   }
 
   /**
-   * Creates an HTML response based on an edge.js template defined in the views folder.
+   * Creates an HTML response based on a template defined in the views folder.
    *
    * @param path view path.
    * @param params an object containing values to be used in the template.
@@ -127,7 +127,7 @@ export default class Endpoint extends BaseEndpoint {
    */
   async view(path: string, params?: object) {
     if (!this.locked) {
-      const html = await engine.edge.render(path, {
+      const html = await engine.views.render(path, {
         isDev: process.env.NODE_ENV === 'development',
         ...params,
       })
