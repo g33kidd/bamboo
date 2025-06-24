@@ -18,7 +18,7 @@ export async function ensureStorageDirs(dirs: string[]) {
   const storagePath = join(cwd(), 'storage')
   const storageExists = await exists(storagePath)
   if (!storageExists) {
-    console.info('Storage did not exist at', storagePath, '. Creating folder.')
+    engine.logging.info(`Storage did not exist at ${storagePath}, creating folder.`)
     await mkdir(storagePath)
   }
 
@@ -26,13 +26,7 @@ export async function ensureStorageDirs(dirs: string[]) {
     const path = join(storagePath, dir)
     const dirExists = await exists(path)
     if (!dirExists) {
-      engine.logging.log(
-        'Storage directory',
-        dir,
-        'did not exist. Creating new folder at:',
-        path,
-      )
-
+      engine.logging.info(`Storage directory ${dir}, did not exist. Creating new folder at: ${path}`)
       await mkdir(path)
     }
   }
@@ -62,13 +56,8 @@ export async function saveFile(dir: string, name: string, buffer: Buffer) {
     const bytesWritten = await Bun.write(path, buffer.buffer)
 
     if (bytesWritten !== buffer.byteLength) {
-      engine.logging.log(
-        'File at:',
-        path,
-        'could not be saved. bufByteLength:',
-        buffer.byteLength,
-        'bytesWritten:',
-        bytesWritten,
+      engine.logging.info(
+        `File at: ${path} could not be saved. bufByteLength: ${buffer.byteLength}, bytesWritten: ${bytesWritten}`,
       )
       throw new Error('Could not save entire file. Check logs.')
     } else {
