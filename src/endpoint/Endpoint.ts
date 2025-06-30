@@ -24,18 +24,28 @@ export default class Endpoint extends BaseEndpoint {
     const parts = this.url.pathname.split('/')
     this.parts = parts.filter((p) => p !== '')
 
-    if (
-      this.request.method === 'POST' ||
-      this.request.method === 'PUT' ||
-      this.request.method === 'PATCH'
-    ) {
-      this.request.json().then((json) => {
-        this.params = json
-      })
-    }
-
     if (this.request.method === 'HEAD') {
       this.head = true
+    }
+  }
+
+  /**
+   * Ensures JSON body is parsed and available in params
+   */
+  async ensureJsonParsed() {
+    if (
+      (this.request.method === 'POST' ||
+        this.request.method === 'PUT' ||
+        this.request.method === 'PATCH') &&
+      Object.keys(this.params).length === 0
+    ) {
+      try {
+        const json = await this.request.json()
+        this.params = json
+      } catch (error) {
+        // If JSON parsing fails, that's okay - the params will remain empty
+        // and the action handler can handle it appropriately
+      }
     }
   }
 

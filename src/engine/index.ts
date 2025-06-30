@@ -780,6 +780,10 @@ export class Engine {
       return endpoint.status(404)
     } else {
       endpoint.params = params
+      
+      // Ensure JSON body is parsed for POST/PUT/PATCH requests
+      await endpoint.ensureJsonParsed()
+      
       endpoint = await action.handle(endpoint)
     }
 
@@ -970,6 +974,63 @@ export class Engine {
     }
     this.logging.warn(`Worker '${name}' not found`)
     return false
+  }
+
+  /**
+   * Gets debug information about all registered routes and WebSocket actions
+   */
+  getDebugInfo() {
+    const httpRoutes: Array<{ method: string; path: string; definition: string }> = []
+    const wsActions: Array<{ event: string; definition: string }> = []
+
+    // Collect HTTP routes from the action registry
+    for (const [method, methodStore] of this.registry.store) {
+      this.collectRoutes(methodStore, method, [], httpRoutes)
+    }
+
+    // Collect WebSocket actions
+    if (this.websocket?.actions) {
+      for (const [event, action] of this.realtime.actions.store) {
+        wsActions.push({
+          event,
+          definition: action.definition,
+        })
+      }
+    }
+
+    return {
+      httpRoutes: httpRoutes.sort((a, b) => a.path.localeCompare(b.path)),
+      wsActions: wsActions.sort((a, b) => a.event.localeCompare(b.event)),
+      totalHttpRoutes: httpRoutes.length,
+      totalWsActions: wsActions.length,
+      services: Array.from(this.services.keys()),
+      pipes: this.pipes.length,
+      wsPipes: this.websocket?.pipes?.length || 0,
+    }
+  }
+
+  /**
+   * Recursively collects routes from the action registry
+   */
+  private collectRoutes(
+    store: Map<string, any> | Action,
+    method: string,
+    currentPath: string[],
+    routes: Array<{ method: string; path: string; definition: string }>,
+  ) {
+    if (store instanceof Action) {
+      routes.push({
+        method,
+        path: '/' + currentPath.join('/'),
+        definition: store.definition,
+      })
+    } else if (store instanceof Map) {
+      for (const [key, value] of store) {
+        if (key !== '__root') {
+          this.collectRoutes(value, method, [...currentPath, key], routes)
+        }
+      }
+    }
   }
 }
 
