@@ -19,6 +19,15 @@ export default class Bamboo {
   static verify(ctx: string, data: string, lifetime?: number) { }
 
   /**
+   * Creates a unique identifier for the current instance.
+   */
+  static createId() {
+    const buffer = Buffer.from(ncrypto.randomBytes(32).buffer)
+    buffer.write(Date.now().toString(), 8)
+    return buffer.toString('base64')
+  }
+
+  /**
    * Generates a random value with base64 encoding.
    * TODO: Remove this
    */

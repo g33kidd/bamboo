@@ -26,6 +26,20 @@ import { Encryption, sign, verify, random, token, hash, hmac, uuid } from './src
 // DevServer
 import { devserver } from './src/devserver'
 
+// Debug utilities
+import { get } from './src/actions/action'
+
+/**
+ * Creates a debug endpoint that lists all registered routes and WebSocket actions
+ * Usage: get('/debug/routes', createDebugEndpoint(engine))
+ */
+export function createDebugEndpoint(engine: Engine) {
+  return async (endpoint: Endpoint) => {
+    const debugInfo = engine.getDebugInfo()
+    return endpoint.json(debugInfo)
+  }
+}
+
 export default Bamboo
 
 export {

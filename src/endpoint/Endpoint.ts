@@ -24,18 +24,28 @@ export default class Endpoint extends BaseEndpoint {
     const parts = this.url.pathname.split('/')
     this.parts = parts.filter((p) => p !== '')
 
-    if (
-      this.request.method === 'POST' ||
-      this.request.method === 'PUT' ||
-      this.request.method === 'PATCH'
-    ) {
-      this.request.json().then((json) => {
-        this.params = json
-      })
-    }
-
     if (this.request.method === 'HEAD') {
       this.head = true
+    }
+  }
+
+  /**
+   * Ensures JSON body is parsed and available in params
+   */
+  async ensureJsonParsed() {
+    if (
+      (this.request.method === 'POST' ||
+        this.request.method === 'PUT' ||
+        this.request.method === 'PATCH') &&
+      Object.keys(this.params).length === 0
+    ) {
+      try {
+        const json = await this.request.json()
+        this.params = json
+      } catch (error) {
+        // If JSON parsing fails, that's okay - the params will remain empty
+        // and the action handler can handle it appropriately
+      }
     }
   }
 
@@ -119,7 +129,7 @@ export default class Endpoint extends BaseEndpoint {
   }
 
   /**
-   * Creates an HTML response based on an edge.js template defined in the views folder.
+   * Creates an HTML response based on a template defined in the views folder.
    *
    * @param path view path.
    * @param params an object containing values to be used in the template.
@@ -127,7 +137,7 @@ export default class Endpoint extends BaseEndpoint {
    */
   async view(path: string, params?: object) {
     if (!this.locked) {
-      const html = await engine.edge.render(path, {
+      const html = await engine.views.render(path, {
         isDev: process.env.NODE_ENV === 'development',
         ...params,
       })

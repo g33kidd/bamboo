@@ -1,6 +1,6 @@
 import { Server, ServerWebSocket } from 'bun'
-import { Edge } from 'edge.js'
 import { join } from 'path'
+import * as ncrypto from 'node:crypto'
 import { cwd, hrtime } from 'process'
 import Action, { action } from '../actions/action'
 import ActionGroup from '../actions/group'
@@ -23,6 +23,7 @@ import RateLimitCache from '../extensions/ratelimit'
 import Extension from '../core/extension'
 import ExtensionContainer from '../core/extensions'
 import { ConsoleLogAdapter } from '../core/adapters/logging'
+import Bamboo, { engine } from '../..'
 
 export type EngineWebSocketConfig = {
   pipes: Array<Pipe<WebSocketEndpoint>>
@@ -51,10 +52,6 @@ export type EngineLimiter = {
   amount: number
   perIntervalMs: number
 }
-
-// export type Room = {
-//   handlers: WebSocketHandler[];
-// };
 
 /**
  * An Engine is responsible for handling the application server, extensions and anything else you might need during development.
@@ -134,17 +131,20 @@ export class Engine {
   presence: PresenceEngine = new PresenceEngine()
 
   /**
-   * Edge (from AdonisJS) is used as the templating engine currently, this is
-   * the edgejs instance.
-   *
-   * TODO: Replace this with a custom templating engine built for bun.
+   * Simple view mounting system to replace edge.js
+   * 
+   * TODO: Add template rendering capabilities as needed
    */
-  edge: Edge
+  views: ViewMount = new ViewMount()
+
+  /**
+   * Unique identifier for the current engine instance.
+   */
+  readonly instanceId: string = Buffer.from(ncrypto.randomBytes(32).buffer).toString('base64', 8)
 
   constructor(appConfig: ApplicationConfig, config: EngineConfig) {
     this.config = appConfig
     this.config.pathMap = new Map()
-    this.edge = new Edge({ cache: true })
 
     // TODO: rate limiter configuration should be in the configuration section
     this.limiterCache?.loadFromCacheFile()
@@ -180,7 +180,7 @@ export class Engine {
       }
 
       // console.log(this.config.paths);
-      this.edge.mount(this.config.paths.views)
+      this.views.mount(this.config.paths.views)
 
       // Copy pipes from the config into the Engine.
       if (config.pipes) {
@@ -354,7 +354,7 @@ export class Engine {
         this.logging.info(`Found views directory: ${pattern}`)
 
         try {
-          this.edge.mount(viewsDir)
+          this.views.mount(viewsDir)
           this.logging.info(`Mounted views from ${pattern}`)
           return
         } catch (error) {
@@ -780,6 +780,10 @@ export class Engine {
       return endpoint.status(404)
     } else {
       endpoint.params = params
+      
+      // Ensure JSON body is parsed for POST/PUT/PATCH requests
+      await endpoint.ensureJsonParsed()
+      
       endpoint = await action.handle(endpoint)
     }
 
@@ -970,6 +974,162 @@ export class Engine {
     }
     this.logging.warn(`Worker '${name}' not found`)
     return false
+  }
+
+  /**
+   * Gets debug information about all registered routes and WebSocket actions
+   */
+  getDebugInfo() {
+    const httpRoutes: Array<{ method: string; path: string; definition: string }> = []
+    const wsActions: Array<{ event: string; definition: string }> = []
+
+    // Collect HTTP routes from the action registry
+    for (const [method, methodStore] of this.registry.store) {
+      this.collectRoutes(methodStore, method, [], httpRoutes)
+    }
+
+    // Collect WebSocket actions
+    if (this.websocket?.actions) {
+      for (const [event, action] of this.realtime.actions.store) {
+        wsActions.push({
+          event,
+          definition: action.definition,
+        })
+      }
+    }
+
+    return {
+      httpRoutes: httpRoutes.sort((a, b) => a.path.localeCompare(b.path)),
+      wsActions: wsActions.sort((a, b) => a.event.localeCompare(b.event)),
+      totalHttpRoutes: httpRoutes.length,
+      totalWsActions: wsActions.length,
+      services: Array.from(this.services.keys()),
+      pipes: this.pipes.length,
+      wsPipes: this.websocket?.pipes?.length || 0,
+    }
+  }
+
+  /**
+   * Recursively collects routes from the action registry
+   */
+  private collectRoutes(
+    store: Map<string, any> | Action,
+    method: string,
+    currentPath: string[],
+    routes: Array<{ method: string; path: string; definition: string }>,
+  ) {
+    if (store instanceof Action) {
+      routes.push({
+        method,
+        path: '/' + currentPath.join('/'),
+        definition: store.definition,
+      })
+    } else if (store instanceof Map) {
+      for (const [key, value] of store) {
+        if (key !== '__root') {
+          this.collectRoutes(value, method, [...currentPath, key], routes)
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Simple view mounting system to replace edge.js
+ */
+class ViewMount {
+  private mountedPaths: Set<string> = new Set()
+  private templateCache: Map<string, string> = new Map()
+
+  mount(path: string) {
+    this.mountedPaths.add(path)
+  }
+
+  getMountedPaths(): string[] {
+    return Array.from(this.mountedPaths)
+  }
+
+  isMounted(path: string): boolean {
+    return this.mountedPaths.has(path)
+  }
+
+  /**
+   * Render a template with variable injection and basic conditionals
+   */
+  async render(templatePath: string, data: Record<string, any> = {}): Promise<string> {
+    // Check cache first
+    if (this.templateCache.has(templatePath)) {
+      return this.processTemplate(this.templateCache.get(templatePath)!, data)
+    }
+
+    // Find template in mounted paths
+    for (const mountedPath of this.mountedPaths) {
+      let fullPath = join(mountedPath, templatePath)
+
+      try {
+        const template = await fs.readFile(fullPath, 'utf-8')
+        this.templateCache.set(templatePath, template)
+        return this.processTemplate(template, data)
+      } catch (error) {
+        // If no extension provided, try with .edge extension
+        if (!templatePath.includes('.')) {
+          const edgePath = join(mountedPath, `${templatePath}.edge`)
+
+          try {
+            const template = await fs.readFile(edgePath, 'utf-8')
+            this.templateCache.set(templatePath, template)
+            return this.processTemplate(template, data)
+          } catch (edgeError) {
+            // Continue to next mounted path
+          }
+        }
+
+        // Continue to next mounted path
+        continue
+      }
+    }
+
+    throw new Error(`Template not found: ${templatePath}`)
+  }
+
+  /**
+   * Process template with variable injection and basic conditionals
+   */
+  private processTemplate(template: string, data: Record<string, any>): string {
+    let result = template
+
+    // Handle variable injection: {{ variable }}
+    result = result.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, variable) => {
+      return data[variable] !== undefined ? String(data[variable]) : match
+    })
+
+    // Handle basic conditionals: @if(condition) ... @else ... @endif
+    result = result.replace(/@if\s*\(\s*(\w+)\s*\)([\s\S]*?)(?:@else([\s\S]*?))?@endif/g, (match, condition, ifContent, elseContent) => {
+      const value = data[condition]
+      const isTruthy = value === true || (typeof value === 'string' && value !== 'false' && value !== '0' && value !== '') || (typeof value === 'number' && value !== 0)
+
+      return isTruthy ? ifContent : (elseContent || '')
+    })
+
+    // Handle basic loops: @each(item in items) ... @endeach
+    result = result.replace(/@each\s*\(\s*(\w+)\s+in\s+(\w+)\s*\)([\s\S]*?)@endeach/g, (match, itemVar, itemsVar, content) => {
+      const items = data[itemsVar]
+      if (!Array.isArray(items)) return ''
+
+      return items.map(item => {
+        const itemData = { ...data, [itemVar]: item }
+        return this.processTemplate(content, itemData)
+      }).join('')
+    })
+
+    return result
+  }
+
+  /**
+   * Clear template cache
+   */
+  clearCache() {
+    this.templateCache.clear()
   }
 }
 

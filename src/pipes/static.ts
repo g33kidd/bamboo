@@ -11,7 +11,7 @@ export const SUPPORTED_FILE_TYPES: FileTypes = {
   html: 'text/html',
   htm: 'text/html',
   css: 'text/css',
-  js: 'text/javascript',
+  js: 'application/javascript',
   jpeg: 'image/jpeg',
   jpg: 'image/jpeg',
   png: 'image/png',
@@ -59,6 +59,12 @@ const contentType = (ext: string) => SUPPORTED_FILE_TYPES[ext]
  * Handles static assets.
  */
 export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
+  console.log('🔍 Static pipe request', {
+    url: endpoint.url.href,
+    urlParts: endpoint.parts,
+    filename: endpoint.parts[endpoint.parts.length - 1],
+  })
+
   // Path mapping needs to be a thing
   // Will be used to search directories or rewrite them.
   // This is needed while running a vite development server, because some assets come from node_modules.
@@ -68,12 +74,20 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   if (!staticPaths) {
     staticPaths = ['static', 'assets', 'frontend/public']
   }
+  console.log('🔍 Static paths', staticPaths)
 
   const url = endpoint.parts
   if (url.length < 1) return endpoint
 
-  const expectedExt = url[url.length - 1].split('.')[1]
+  console.log('🔍 URL', url)
+
+  const filename = url[url.length - 1]
+  const expectedExt = filename.split('.').pop() || ''
   const ext = isSupported(expectedExt) ? expectedExt : null
+  
+  console.log('🔍 Filename:', filename, 'Expected extension:', expectedExt, 'Supported:', ext)
+
+  console.log('🔍 Expected extension', expectedExt, ext)
 
   // This is likely empty or a folder.
   const folder = url[0]
@@ -98,7 +112,7 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
   let directory = join(process.cwd(), 'static')
   let modifiedDirectory = false
 
-  if (folder !== '' || folder !== null) {
+  if (folder !== '' && folder !== null) {
     // Get the mapped path and assign it.
     const mappedPath = pathMap.get(folder)
     if (mappedPath) {
@@ -130,7 +144,10 @@ export async function parseStatic(endpoint: Endpoint, staticPaths?: string[]) {
 
   if (exists) {
     const response = new Response(file.stream())
-    response.headers.set('Content-Type', file.type)
+    // Use our custom MIME type mapping instead of file.type
+    const mimeType = contentType(ext) || file.type
+    console.log('🔍 Setting MIME type:', { filename, ext, mimeType, fileType: file.type })
+    response.headers.set('Content-Type', mimeType)
     response.headers.set('Content-Length', file.size.toString())
 
     // Cache Control Headers
